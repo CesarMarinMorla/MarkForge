@@ -5,6 +5,7 @@ content = {
     "subtitle": "Sistema Centralizado de Gesti\u00f3n de Activos IT \u2014 Inventario ITU",
     "output": "informe-inventario-itu.pdf",
     "show_toc": True,
+    "watermark": "CONFIDENCIAL",
     "theme": {
         "primary": "#0D3B66",
         "accent":  "#E94560",

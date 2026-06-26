@@ -197,6 +197,10 @@ CONTENT SCHEMA (what the agent must produce as JSON)
   "show_footer_date": boolean, OPTIONAL. false = hide generation date in
                                footer. Default: true.
 
+  "watermark":  string,        OPTIONAL. Watermark text (e.g. "CONFIDENCIAL",
+                               "BORRADOR", "DOCUMENTO INTERNO"). Drawn
+                               diagonally across every page at low opacity.
+
   "theme": {                   OPTIONAL. Override brand colors. All values are
                                hex strings "#RRGGBB".
     "primary":  "#1A1A2E",     Header bar, headings, table header background.
@@ -522,18 +526,31 @@ class PageChrome:
         self.C       = theme    # shorthand: C["primary"], C["accent"], etc.
 
     def __init__(self, title: str, version: str, theme: dict, margin: float,
-                 show_footer_date: bool = True):
+                 show_footer_date: bool = True, watermark: str = ""):
         self.title           = title.upper()
         self.version         = version
         self.C               = theme
         self.margin          = margin
         self.show_footer_date = show_footer_date
+        self.watermark       = watermark.upper()
 
     def __call__(self, c: pdfgen_canvas.Canvas, doc):
         """Called by SimpleDocTemplate.build() for every page."""
         c.saveState()
+        if self.watermark:
+            self._watermark(c, doc)
         self._header(c, doc)
         self._footer(c, doc)
+        c.restoreState()
+
+    def _watermark(self, c, doc):
+        pw, ph = doc.pagesize
+        c.setFillColor(colors.Color(0, 0, 0, alpha=0.08))
+        c.setFont("Helvetica-Bold", 60)
+        c.saveState()
+        c.translate(pw / 2, ph / 2)
+        c.rotate(45)
+        c.drawCentredString(0, 0, self.watermark)
         c.restoreState()
 
     def _header(self, c, doc):
@@ -1079,6 +1096,7 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
         theme           = C,
         margin          = MARGIN,
         show_footer_date = content.get("show_footer_date", True),
+        watermark       = content.get("watermark", ""),
     )
 
     # ── Document template ────────────────────────────────────────────────
