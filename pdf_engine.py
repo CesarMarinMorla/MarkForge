@@ -823,24 +823,15 @@ def make_table(headers: list[str], rows: list[list[str]],
 
 def make_code(code_text: str, language: str, C: dict, text_width: float) -> list:
     """
-    Code block with monospace font, light gray background, and optional
-    language label in the top-right corner.
+    Code block with monospace font and light gray background.
 
     Uses Preformatted flowable (not Paragraph) so whitespace, indentation,
     and blank lines are preserved exactly as written.
-    """
-    rows = []
-    if language:
-        lang_style = ParagraphStyle(
-            "code_lang",
-            fontName="Helvetica-Oblique",
-            fontSize=7,
-            leading=9,
-            textColor=C["muted"],
-            alignment=TA_RIGHT,
-        )
-        rows.append([Paragraph(safe_xml(language), lang_style)])
 
+    Note: Courier (built-in PDF font) only supports ASCII. Unicode box-drawing
+    characters (├ ─ │) will render as black blocks. Use ASCII alternatives:
+    | - + ' instead.
+    """
     code_style = ParagraphStyle(
         "code_block",
         fontName="Courier",
@@ -850,10 +841,9 @@ def make_code(code_text: str, language: str, C: dict, text_width: float) -> list
         backColor=C["light"],
     )
     inner = Preformatted(code_text, code_style)
-    rows.append([inner])
 
     box = Table(
-        rows,
+        [[inner]],
         colWidths=[text_width],
         style=TableStyle([
             ("BACKGROUND",    (0, 0), (-1, -1), C["light"]),
@@ -861,9 +851,7 @@ def make_code(code_text: str, language: str, C: dict, text_width: float) -> list
             ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
             ("TOPPADDING",    (0, 0), (-1, -1), 6),
             ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-        ] + ([
-            ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.HexColor("#DDDDDD")),
-        ] if language else [])),
+        ]),
     )
     return [box, Spacer(1, 8)]
 

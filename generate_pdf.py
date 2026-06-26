@@ -91,8 +91,7 @@ content = {
         {
             "heading": "4.1 Visi\u00f3n general",
             "body": "El sistema sigue una arquitectura en tres capas: frontend SPA, backend API REST, y almacenamiento heterog\u00e9neo.",
-            "code": "Frontend (React SPA)\n       \u2193  HTTP\nBackend (Node.js / Express 5)\n   \u251c\u2500\u2500 SQL Server  (ubicaci\u00f3n y asignaci\u00f3n de m\u00e1quinas)\n   \u251c\u2500\u2500 MongoDB     (especificaciones de hardware)\n   \u2514\u2500\u2500 LDAP / AD   (autenticaci\u00f3n y usuarios)",
-            "language": "text",
+            "code": "Frontend (React SPA)\n       |  HTTP\nBackend (Node.js / Express 5)\n   |-- SQL Server  (ubicaci\u00f3n y asignaci\u00f3n de m\u00e1quinas)\n   |-- MongoDB     (especificaciones de hardware)\n   '-- LDAP / AD   (autenticaci\u00f3n y usuarios)",
         },
         {
             "heading": "4.2 Stack tecnol\u00f3gico",
@@ -115,8 +114,7 @@ content = {
         {
             "heading": "4.3 Estructura del backend",
             "body": "El backend organiza el c\u00f3digo en capas con responsabilidades claramente delimitadas:",
-            "code": "src/\n\u251c\u2500\u2500 app.ts          # Setup Express, middlewares, montaje de rutas\n\u251c\u2500\u2500 server.ts       # Entry point\n\u251c\u2500\u2500 config.ts       # Variables de entorno tipadas\n\u251c\u2500\u2500 routes/         # Definici\u00f3n de endpoints + middlewares\n\u251c\u2500\u2500 controllers/    # Manejo de request/response\n\u251c\u2500\u2500 services/       # L\u00f3gica de negocio\n\u251c\u2500\u2500 repositories/\n\u2502   \u251c\u2500\u2500 interfaces/ # Contratos de repositorio\n\u2502   \u251c\u2500\u2500 sql/        # Implementaci\u00f3n SQL Server\n\u2502   \u251c\u2500\u2500 mongo/      # Implementaci\u00f3n MongoDB\n\u2502   \u2514\u2500\u2500 ldap/       # Implementaci\u00f3n Active Directory\n\u251c\u2500\u2500 mock/repositories/ # Implementaciones en memoria (dev/test)\n\u251c\u2500\u2500 middleware/     # Auth JWT + RBAC\n\u2514\u2500\u2500 lib/            # Permisos + errores custom",
-            "language": "bash",
+            "code": "src/\n|-- app.ts          # Setup Express, middlewares, montaje de rutas\n|-- server.ts       # Entry point\n|-- config.ts       # Variables de entorno tipadas\n|-- routes/         # Definici\u00f3n de endpoints + middlewares\n|-- controllers/    # Manejo de request/response\n|-- services/       # L\u00f3gica de negocio\n|-- repositories/\n|   |-- interfaces/ # Contratos de repositorio\n|   |-- sql/        # Implementaci\u00f3n SQL Server\n|   |-- mongo/      # Implementaci\u00f3n MongoDB\n|   '-- ldap/       # Implementaci\u00f3n Active Directory\n|-- mock/repositories/ # Implementaciones en memoria (dev/test)\n|-- middleware/     # Auth JWT + RBAC\n'-- lib/            # Permisos + errores custom",
             "note": "Cada interfaz de repositorio tiene dos implementaciones: una <b>real</b> y una <b>mock</b>. El switch se controla con la variable MOCK_MODE.",
         },
         {
@@ -256,8 +254,7 @@ content = {
         {
             "heading": "9.2 Pipeline CI/CD",
             "body": "CI (ci.yml): se ejecuta en cada Pull Request a main o develop usando runners hospedados en GitHub. Realiza lint, verificaci\u00f3n de tipos con TypeScript y build de ambas aplicaciones. CD (deploy.yml): se ejecuta en cada push a main mediante un runner self-hosted en la VM Linux de producci\u00f3n. El flujo completo es:",
-            "code": "bootstrap SQL \u2192 build im\u00e1genes Docker \u2192 push a GHCR\n     \u2192 kubectl apply \u2192 rollout status \u2192 iptables (safety net) \u2192 smoke test",
-            "language": "text",
+            "code": "bootstrap SQL -> build im\u00e1genes Docker -> push a GHCR\n     -> kubectl apply -> rollout status -> iptables (safety net) -> smoke test",
             "note": "El smoke test final verifica que el endpoint /health del backend responda con status ok y mockMode=false, confirmando que el despliegue es funcional de extremo a extremo.",
         },
         {
@@ -268,7 +265,6 @@ content = {
             "heading": "10.1 Tests automatizados",
             "body": "El backend cuenta con una suite de tests unitarios ejecutada con Jest, organizada en backend/src/__tests__/. Los tests cubren las implementaciones de repositorios mock y la l\u00f3gica de permisos RBAC.",
             "code": "cd backend\nnpm test           # ejecuci\u00f3n \u00fanica\nnpm run test:watch # modo watch durante desarrollo",
-            "language": "bash",
         },
         {
             "heading": "10.2 Validaci\u00f3n multiplataforma",
