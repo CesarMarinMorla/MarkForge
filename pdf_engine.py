@@ -100,14 +100,19 @@ REPORTLAB CORE CONCEPTS (read this before touching the code below)
           <font color="#E94560"><u><a href="url">text</a></u></font>
         Use the theme's "accent" color (or primary) for consistency.
 
-  4. PARAGRAPHSTYLE PROPERTIES
-     ────────────────────────────
-     fontName      — Must be one of the 14 built-in PDF fonts:
-                       Helvetica, Helvetica-Bold, Helvetica-Oblique,
-                       Helvetica-BoldOblique, Times-Roman, Times-Bold,
-                       Times-Italic, Times-BoldItalic, Courier, Courier-Bold,
-                       Courier-Oblique, Courier-BoldOblique, Symbol, ZapfDingbats
-                     OR a registered TTF font (see registerFont below).
+   4. PARAGRAPHSTYLE PROPERTIES
+      ────────────────────────────
+      fontName      — One of the 14 built-in PDF fonts:
+                        Helvetica[-Bold/-Oblique/-BoldOblique],
+                        Times[-Roman/-Bold/-Italic/-BoldItalic],
+                        Courier[-Bold/-Oblique/-BoldOblique],
+                        Symbol, ZapfDingbats
+                      OR a registered TTF font name (see "fonts" schema).
+                      IMPORTANT: For TTF fonts, inline XML tags (<b>, <i>) resolve
+                      variants by appending -Bold, -Italic, -BoldItalic to the base
+                      font name. Register bold files as "CustomSans-Bold", not
+                      "CustomSansBold" (no dash). This is mandatory for <b>/<i> to
+                      use the TTF variant instead of synthetic bold/italic.
      fontSize      — In points (pt). 1pt = 1/72 inch.
      leading       — Line height in points. Rule of thumb: fontSize × 1.2–1.5.
      textColor     — colors.Color object or colors.HexColor("#RRGGBB").
@@ -197,13 +202,38 @@ CONTENT SCHEMA (what the agent must produce as JSON)
   "show_footer_date": boolean, OPTIONAL. false = hide generation date in
                                footer. Default: true.
 
+  "header_footer": {             OPTIONAL. Override header bar and footer
+                                 content. All fields optional; preserves
+                                 existing behavior if omitted entirely.
+    "header": {                  The colored bar at the top of every page.
+      "show":   boolean,         true (default) = draw header bar.
+      "left":   string,          Text on the left (default: content.title).
+                                 Supports {title} placeholder.
+      "right":  string,          Text on the right (default: meta.version).
+                                 Supports {version} placeholder.
+    },
+    "footer": {                  The accent rule + text at the bottom.
+      "show":   boolean,         true (default) = draw footer.
+      "left":   string,          Footer left-aligned text (default: "").
+      "center": string,          Footer center text (default: "— {page} —").
+                                 Use {page} placeholder for page number.
+      "right":  string,          Footer right-aligned text (default: date if
+                                 show_footer_date is true, else "").
+    }
+  },
+
   "watermark":  string,        OPTIONAL. Watermark text (e.g. "CONFIDENCIAL",
                                "BORRADOR", "DOCUMENTO INTERNO"). Drawn
                                diagonally across every page at low opacity.
 
   "fonts": {                   OPTIONAL. Register custom TTF fonts.
-                               All keys are optional; defaults to built-in
-                               Helvetica + Courier.
+                                All keys are optional; defaults to built-in
+                                Helvetica + Courier. Naming convention matters:
+                                fonts are registered as CustomSans,
+                                CustomSans-Bold, CustomSans-Italic,
+                                CustomSans-BoldItalic (dash suffix) so inline
+                                <b>/<i> tags resolve the correct variant.
+                                See FONT REGISTRATION below.
     "sans": {                  Replaces Helvetica (body, headings, tables).
       "regular":     string,   Path to .ttf file.
       "bold":        string,   Path to bold .ttf variant.
@@ -499,16 +529,30 @@ DEFAULT_FONTS = {
 def register_user_fonts(fonts_config: dict | None) -> dict:
     """
     Register TTF fonts from the content's "fonts" block and return a
-    dict of role → (regular, bold, italic, bold_italic) font names.
+    dict mapping each role → (regular, bold, italic, bold_italic) font names.
+
+    NAMING CONVENTION (critical for inline <b>/<i> support):
+      Fonts are registered as CustomSans, CustomSans-Bold, CustomSans-Italic,
+      CustomSans-BoldItalic (dash suffix).  ReportLab's paragraph renderer
+      resolves <b> by appending "-Bold" to the base fontName, so the dash
+      convention is mandatory — registering as "CustomSansBold" (no dash)
+      WILL NOT be found by <b>/<i> tags.
+
+    FALLBACK BEHAVIOR:
+      * If a path is missing or registration fails, that variant falls back
+        to the built-in PDF font for that role (e.g., Helvetica-Bold).
+      * serif is defined but not currently used in any style.
 
     Expected schema:
       "fonts": {
-        "sans": { "regular": "path", "bold": "path", "italic": "path", "bold_italic": "path" },
-        "mono": { "regular": "path", "bold": "path" },
-        "serif": { "regular": "path", ... }
+        "sans":  { "regular": "path.ttf", "bold": "path.ttf",
+                    "italic": "path.ttf", "bold_italic": "path.ttf" },
+        "mono":  { "regular": "path.ttf", "bold": "path.ttf" },
+        "serif": { "regular": "path.ttf", ... }
       }
 
-    All keys are optional. Unspecified roles fall back to built-in fonts.
+    All keys are optional. Returns DEFAULT_FONTS unchanged if fonts_config
+    is None or empty.
     """
     resolved = dict(DEFAULT_FONTS)
 
@@ -525,10 +569,11 @@ def register_user_fonts(fonts_config: dict | None) -> dict:
         italic_path = cfg.get("italic", "")
         bi_path = cfg.get("bold_italic", "")
 
-        reg_name = f"Custom{role.capitalize()}"
-        bold_name = f"Custom{role.capitalize()}Bold"
-        italic_name = f"Custom{role.capitalize()}Italic"
-        bi_name = f"Custom{role.capitalize()}BoldItalic"
+        base_name = f"Custom{role.capitalize()}"
+        reg_name = base_name
+        bold_name = f"{base_name}-Bold"
+        italic_name = f"{base_name}-Italic"
+        bi_name = f"{base_name}-BoldItalic"
 
         if reg_path:
             try:
@@ -619,18 +664,21 @@ class PageChrome:
     The header is a filled rectangle spanning the full page width, drawn at
     canvas level so it sits behind/independent of the Platypus text flow.
     The footer is a thin accent line with page number and generation date.
+
+    Content is configurable via header_footer dict:
+      header: { show: bool, left: str, right: str }
+      footer: { show: bool, left: str, center: str, right: str }
+    "{page}" in footer center is replaced with the current page number.
+    "{title}" in header left and "{version}" in header right are replaced
+    with their respective values for backward compatibility.
     """
 
     HEADER_H = 1.8 * cm    # Height of the top header bar
     FOOTER_Y  = 1.5 * cm   # Y position of footer rule line
 
-    def __init__(self, title: str, version: str, theme: dict):
-        self.title   = title.upper()
-        self.version = version
-        self.C       = theme    # shorthand: C["primary"], C["accent"], etc.
-
     def __init__(self, title: str, version: str, theme: dict, margin: float,
-                 show_footer_date: bool = True, watermark: str = ""):
+                 show_footer_date: bool = True, watermark: str = "",
+                 hf_config: dict | None = None):
         self.title           = title.upper()
         self.version         = version
         self.C               = theme
@@ -638,13 +686,43 @@ class PageChrome:
         self.show_footer_date = show_footer_date
         self.watermark       = watermark.upper()
 
+        # Resolve header config
+        hf = hf_config or {}
+        h_cfg = hf.get("header", {})
+        self.header_show = h_cfg.get("show", True)
+        self.header_left = (h_cfg.get("left") or "").replace(
+            "{title}", self.title
+        ) or self.title
+        self.header_right = (h_cfg.get("right") or "").replace(
+            "{version}", self.version
+        ) or (self.version if self.version else "")
+
+        # Resolve footer config
+        f_cfg = hf.get("footer", {})
+        self.footer_show = f_cfg.get("show", True)
+        self.footer_left   = f_cfg.get("left", "")
+
+        # Determine footer right: explicit config wins, otherwise fall back
+        # to show_footer_date behavior for backward compatibility
+        if "right" in f_cfg:
+            self.footer_right = f_cfg["right"]
+        elif show_footer_date:
+            self.footer_right = "{date}"
+        else:
+            self.footer_right = ""
+
+        # Default center shows page number
+        self.footer_center = f_cfg.get("center", "\u2014 {page} \u2014")
+
     def __call__(self, c: pdfgen_canvas.Canvas, doc):
         """Called by SimpleDocTemplate.build() for every page."""
         c.saveState()
         if self.watermark:
             self._watermark(c, doc)
-        self._header(c, doc)
-        self._footer(c, doc)
+        if self.header_show:
+            self._header(c, doc)
+        if self.footer_show:
+            self._footer(c, doc)
         c.restoreState()
 
     def _watermark(self, c, doc):
@@ -666,12 +744,13 @@ class PageChrome:
         c.setFillColor(colors.white)
         c.setFont("Helvetica-Bold", 10)
         bar_mid = ph - self.HEADER_H + (self.HEADER_H / 2)
-        c.drawString(self.margin, bar_mid - 4, self.title)
+        c.drawString(self.margin, bar_mid - 4, self.header_left)
 
-        if self.version:
+        if self.header_right:
             c.setFont("Helvetica", 8)
             c.setFillColor(colors.HexColor("#AAAACC"))
-            c.drawRightString(pw - self.margin, bar_mid - 3, self.version)
+            c.drawRightString(pw - self.margin, bar_mid - 3,
+                              self.header_right)
 
     def _footer(self, c, doc):
         pw, _ = doc.pagesize
@@ -680,14 +759,19 @@ class PageChrome:
         c.line(self.margin, self.FOOTER_Y, pw - self.margin, self.FOOTER_Y)
 
         c.setFont("Helvetica", 8)
-
         c.setFillColor(self.C["muted"])
-        c.drawCentredString(pw / 2, self.FOOTER_Y - 10,
-                            f"— {doc.page} —")
 
-        if self.show_footer_date:
-            date_str = datetime.now().strftime("%d %b %Y")
-            c.drawRightString(pw - self.margin, self.FOOTER_Y - 10, date_str)
+        if self.footer_left:
+            c.drawString(self.margin, self.FOOTER_Y - 10, self.footer_left)
+
+        center = self.footer_center.replace("{page}", str(doc.page))
+        c.drawCentredString(pw / 2, self.FOOTER_Y - 10, center)
+
+        if self.footer_right:
+            right = self.footer_right.replace(
+                "{date}", datetime.now().strftime("%d %b %Y")
+            )
+            c.drawRightString(pw - self.margin, self.FOOTER_Y - 10, right)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -705,6 +789,9 @@ def build_styles(C: dict, F: dict | None = None) -> dict:
     Build the full style sheet, themed with the resolved color dict C.
     F is an optional font mapping from register_user_fonts().
     Falls back to Helvetica/Courier built-in fonts for any role.
+
+    Each style's fontName is pulled from F so custom TTF fonts propagate
+    to every text element consistently (cover, body, tables, metadata).
 
     Naming convention:
       cover_*     — Cover page elements (large, display-scale)
@@ -1075,6 +1162,9 @@ def make_code(code_text: str, language: str, C: dict, text_width: float,
     Uses Preformatted flowable (not Paragraph) so whitespace, indentation,
     and blank lines are preserved exactly as written.
 
+    mono_font comes from F["mono"][0] — either a registered custom TTF
+    (e.g., CustomMono) or built-in Courier.
+
     Note: Courier (built-in PDF font) only supports ASCII. Unicode box-drawing
     characters (├ ─ │) will render as black blocks. Use ASCII alternatives:
     | - + ' instead.
@@ -1117,6 +1207,9 @@ def assemble_section(section: dict, S: dict, C: dict, text_width: float,
                      toc: bool = False, mono_font: str = "Courier") -> list:
     """
     Build all flowables for one section from the content JSON.
+
+    mono_font is threaded through to make_code() so code blocks use the
+    registered custom monospace font (or Courier by default).
 
     KeepTogether strategy:
     We wrap the section header + first body element together so the heading
@@ -1179,8 +1272,17 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
     """
     Build a complete professional PDF from a content dict.
 
+    Flow:
+      1. content.get("theme")  → build_theme()    → C (color dict)
+      2. content.get("fonts")  → register_user_fonts() → F (font name dict)
+      3. C + F                 → build_styles()     → S (ParagraphStyle dict)
+      4. story = make_cover() + [toc] + assemble_section() per section
+      5. doc.multiBuild(story, onFirstPage=chrome, onLaterPages=chrome)
+
     Args:
         content:     Dict matching the documented schema above.
+                     Fonts are registered via register_user_fonts() and
+                     threaded to build_styles() and assemble_section().
         output_path: Override the output file path. If None, uses
                      content["output"] or defaults to "output.pdf".
 
@@ -1218,6 +1320,7 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
         margin          = MARGIN,
         show_footer_date = content.get("show_footer_date", True),
         watermark       = content.get("watermark", ""),
+        hf_config       = content.get("header_footer"),
     )
 
     # ── Document template ────────────────────────────────────────────────

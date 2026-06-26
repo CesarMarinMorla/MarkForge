@@ -6,12 +6,22 @@ content = {
     "output": "informe-inventario-itu.pdf",
     "show_toc": True,
     "watermark": "CONFIDENCIAL",
+    "header_footer": {
+        "footer": {
+            "left": "ITU-T SG15",
+            "right": "{date}",
+        },
+    },
     "fonts": {
         "sans": {
-            "regular": "/Users/cesar/Library/Fonts/SourceSans3[wght].ttf",
+            "regular":     "/Users/cesar/Library/Fonts/AtkinsonHyperlegible-Regular.ttf",
+            "bold":        "/Users/cesar/Library/Fonts/AtkinsonHyperlegible-Bold.ttf",
+            "italic":      "/Users/cesar/Library/Fonts/AtkinsonHyperlegible-Italic.ttf",
+            "bold_italic": "/Users/cesar/Library/Fonts/AtkinsonHyperlegible-BoldItalic.ttf",
         },
         "mono": {
-            "regular": "/Users/cesar/Library/Fonts/SourceCodePro[wght].ttf",
+            "regular":     "/Users/cesar/Library/Fonts/JetBrainsMono-Regular.ttf",
+            "bold":        "/Users/cesar/Library/Fonts/JetBrainsMono-Bold.ttf",
         },
     },
     "theme": {

@@ -2,15 +2,31 @@
 
 ## v1.1.0 (2026-06-25)
 
-Custom fonts via JSON schema. Source Sans 3 + Source Code Pro demo.
+Custom fonts via JSON schema. Atkinson Hyperlegible + JetBrains Mono demo.
+Header/footer configurable content.
 
 - **Custom fonts**: `"fonts"` block in JSON registers TTF files via ReportLab's
   pdfmetrics/TTFont. Roles (`sans`, `mono`, `serif`) map to style sheet;
   missing paths fall back to Helvetica/Courier/Times built-ins.
 - **register_user_fonts()**: merges user TTF config with DEFAULT_FONTS, returns
-  a role→name tuple dict consumed by `build_styles()`, `make_code()`.
-- All ParagraphStyles in `build_styles()` now source font names from the `F`
-  dict instead of hardcoded "Helvetica-*" / "Courier".
+  a role → (regular, bold, italic, bold_italic) tuple dict.
+- **Dash naming convention**: fonts are registered with dash suffixes
+  (CustomSans-Bold, CustomSans-Italic, CustomSans-BoldItalic) so inline XML
+  `<b>`/`<i>` resolve to the correct TTF variant. Registering without dash
+  (CustomSansBold) silently falls back to synthetic bold/italic.
+- **build_styles(C, F)**: all ParagraphStyles now source fontName from the `F`
+  dict (sans_reg, sans_bold, sans_ital, etc.) instead of hardcoded Helvetica.
+- **make_code(mono_font)**: accepts optional mono_font parameter (default Courier)
+  from F["mono"][0] so custom monospace fonts apply to code blocks.
+- **assemble_section(mono_font)**: threads mono_font through to make_code().
+- **Migrated demo** from variable fonts (Source Sans 3 / Source Code Pro) to
+  static-weight Atkinson Hyperlegible (designed for maximum legibility by
+  Braille Institute) and JetBrains Mono. Variable fonts render too thin because
+  ReportLab reads their default lightweight axis value.
+- **Header/footer configurable**: `"header_footer"` block in JSON overrides
+  header left/right, footer left/center/right, and show/hide flags. Placeholders
+  `{page}`, `{date}`, `{title}`, `{version}` resolve at render time. Fully
+  backward-compatible with existing `show_footer_date`.
 
 ## v1.0.0 (2026-06-25)
 
