@@ -182,8 +182,11 @@ CONTENT SCHEMA (what the agent must produce as JSON)
   "show_toc":   boolean,       OPTIONAL. true = insert a Table of Contents
                                after the cover page. Default: false.
 
-  "show_cover": boolean,       OPTIONAL. false = skip the cover page.
+  "show_cover":      boolean,  OPTIONAL. false = skip the cover page.
                                Default: true.
+
+  "show_footer_date": boolean, OPTIONAL. false = hide generation date in
+                               footer. Default: true.
 
   "theme": {                   OPTIONAL. Override brand colors. All values are
                                hex strings "#RRGGBB".
@@ -417,11 +420,13 @@ class PageChrome:
         self.version = version
         self.C       = theme    # shorthand: C["primary"], C["accent"], etc.
 
-    def __init__(self, title: str, version: str, theme: dict, margin: float):
-        self.title   = title.upper()
-        self.version = version
-        self.C       = theme
-        self.margin  = margin
+    def __init__(self, title: str, version: str, theme: dict, margin: float,
+                 show_footer_date: bool = True):
+        self.title           = title.upper()
+        self.version         = version
+        self.C               = theme
+        self.margin          = margin
+        self.show_footer_date = show_footer_date
 
     def __call__(self, c: pdfgen_canvas.Canvas, doc):
         """Called by SimpleDocTemplate.build() for every page."""
@@ -458,8 +463,9 @@ class PageChrome:
         c.drawCentredString(pw / 2, self.FOOTER_Y - 10,
                             f"— {doc.page} —")
 
-        date_str = datetime.now().strftime("%d %b %Y")
-        c.drawRightString(pw - self.margin, self.FOOTER_Y - 10, date_str)
+        if self.show_footer_date:
+            date_str = datetime.now().strftime("%d %b %Y")
+            c.drawRightString(pw - self.margin, self.FOOTER_Y - 10, date_str)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -956,10 +962,11 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
 
     # ── Page chrome (header/footer) ──────────────────────────────────────
     chrome = PageChrome(
-        title   = content.get("title", "Document"),
-        version = meta.get("version", ""),
-        theme   = C,
-        margin  = MARGIN,
+        title           = content.get("title", "Document"),
+        version         = meta.get("version", ""),
+        theme           = C,
+        margin          = MARGIN,
+        show_footer_date = content.get("show_footer_date", True),
     )
 
     # ── Document template ────────────────────────────────────────────────
