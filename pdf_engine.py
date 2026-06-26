@@ -221,6 +221,13 @@ CONTENT SCHEMA (what the agent must produce as JSON)
                                Use for key insights, warnings, or summary stats.
                                Supports inline markup.
 
+      "image": {               OPTIONAL. Embedded image.
+        "path":     string,    REQUIRED. File path to the image.
+        "width":    float,     OPTIONAL. Width in cm. Default: full text width.
+        "height":   float,     OPTIONAL. Height in cm. Auto-aspect if omitted.
+        "caption":  string     OPTIONAL. Centered italic caption below the image.
+      },
+
       "table": {               OPTIONAL. A data table.
         "headers": [string],   Column header labels. Rendered with white text
                                on dark (primary color) background.
@@ -297,6 +304,7 @@ from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas as pdfgen_canvas
 from reportlab.platypus import (
     HRFlowable,
+    Image as RLImage,
     KeepTogether,
     PageBreak,
     Paragraph,
@@ -698,6 +706,42 @@ def make_highlight(text: str, S: dict, C: dict, text_width: float) -> list:
     return [box, Spacer(1, 8)]
 
 
+def make_image(img: dict, S: dict, text_width: float) -> list:
+    """
+    Embed an image. The image dict can contain:
+      path:    str  (required) — file path
+      width:   float (optional, cm) — default text_width
+      height:  float (optional, cm) — auto aspect if omitted
+      caption: str   (optional) — centered italic caption below
+    """
+    path = img.get("path", "")
+    if not path:
+        return []
+    w_cm = img.get("width")
+    w_pt = w_cm * cm if w_cm else text_width
+    h_cm = img.get("height")
+    h_pt = h_cm * cm if h_cm else None
+    try:
+        rl_img = RLImage(path, width=w_pt, height=h_pt) if h_pt else RLImage(path, width=w_pt)
+    except Exception:
+        return [Paragraph(f"<i>[Image not found: {safe_xml(path)}]</i>", S["note"])]
+    elems = [rl_img, Spacer(1, 2)]
+    caption = img.get("caption")
+    if caption:
+        cap_style = ParagraphStyle(
+            "image_caption",
+            fontName="Helvetica-Oblique",
+            fontSize=8,
+            leading=10,
+            textColor=colors.HexColor("#888888"),
+            alignment=TA_CENTER,
+            spaceAfter=8,
+        )
+        elems.append(Paragraph(safe_xml(caption), cap_style))
+    elems.append(Spacer(1, 4))
+    return elems
+
+
 def make_table(headers: list[str], rows: list[list[str]],
                col_widths_cm: list[float] | None,
                S: dict, C: dict, text_width: float) -> list:
@@ -777,6 +821,7 @@ def assemble_section(section: dict, S: dict, C: dict, text_width: float) -> list
     body    = section.get("body", "")
     bullets = section.get("bullets", [])
     hl      = section.get("highlight", "")
+    img     = section.get("image")
     tbl     = section.get("table")
     note    = section.get("note", "")
 
@@ -790,6 +835,8 @@ def assemble_section(section: dict, S: dict, C: dict, text_width: float) -> list
         body_elems += make_bullets(bullets, S)
     if hl:
         body_elems += make_highlight(hl, S, C, text_width)
+    if img:
+        body_elems += make_image(img, S, text_width)
     if tbl:
         body_elems += make_table(
             tbl.get("headers", []),
