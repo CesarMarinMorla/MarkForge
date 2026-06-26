@@ -188,7 +188,9 @@ CONTENT SCHEMA (what the agent must produce as JSON)
   "meta": {                    OPTIONAL. Key/value pairs shown on the cover page
                                below the title. Any string keys are accepted.
     "author":     string,
-    "date":       string,      If omitted, today's date is used automatically.
+    "date"       | "fecha"
+    | "datum":    string,      If omitted, today's date is used automatically.
+                               Recognises "date", "fecha", or "datum".
     "version":    string,      Also shown in the page header (top-right).
     "department": string,
     ...                        Add any fields relevant to the document type.
@@ -249,7 +251,7 @@ AGENT SYSTEM PROMPT (copy this into your agent's system instructions)
   4. "bullets" is a flat array of strings, not nested objects.
   5. "rows" in a table is a 2D array: outer array = rows, inner = cells.
      Cell count per row must exactly match the number of headers.
-  6. If "date" is not provided in "meta", today's date will be used.
+   6. If no date key ("date", "fecha", or "datum") is provided in "meta", today's date will be used automatically as "date".
   7. Keep "highlight" to 1–3 sentences max. It's a call-out, not a paragraph.
   8. Do not put HTML or Markdown inside text values. Only use these XML tags:
        <b>text</b>   <i>text</i>   <br/>   <sub>text</sub>   <super>text</super>
@@ -808,7 +810,8 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
 
     # ── Resolve meta ─────────────────────────────────────────────────────
     meta = dict(content.get("meta", {}))
-    if "date" not in meta:
+    date_keys = {"date", "fecha", "datum"}
+    if not date_keys.intersection(k.lower() for k in meta):
         meta["date"] = datetime.now().strftime("%B %d, %Y")
 
     # ── Build style sheet ────────────────────────────────────────────────

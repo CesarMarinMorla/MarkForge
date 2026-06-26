@@ -16,7 +16,7 @@ content = {
     },
     "meta": {
         "autor": "Instituto Tecnol\u00f3gico Universitario \u2014 Universidad Nacional de Cuyo",
-        "date": "Junio 2026",
+        "fecha": "Junio 2026",
         "versi\u00f3n": "1.0",
         "asignaturas": "Sistemas Operativos Aplicados: Linux \u00b7 Windows \u00b7 Computaci\u00f3n en la Nube \u00b7 Bases de Datos Avanzadas",
         "autores": "C\u00e9sar Mar\u00edn \u00b7 Maximiliano Lopez \u00b7 Franco Rossi \u00b7 Micaela Becerra",
