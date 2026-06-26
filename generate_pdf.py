@@ -31,7 +31,7 @@ content = {
         {
             "heading": "2. Objetivos",
             "body": "Objetivo general: Dise\u00f1ar, implementar y desplegar un sistema centralizado de gesti\u00f3n de activos IT para los laboratorios del ITU, con arquitectura contenerizada, autenticaci\u00f3n institucional y pol\u00edticas de seguridad de red.",
-            "bullets": [
+            "ordered_list": [
                 "Dise\u00f1ar un modelo de datos h\u00edbrido que combine SQL Server y MongoDB para representar distintos aspectos del inventario, justificando la elecci\u00f3n de cada motor seg\u00fan la naturaleza de la informaci\u00f3n.",
                 "Integrar autenticaci\u00f3n y autorizaci\u00f3n con el Active Directory institucional mediante el protocolo LDAP.",
                 "Implementar control de acceso basado en roles (RBAC) con cuatro niveles diferenciados derivados de los grupos de AD.",

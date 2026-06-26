@@ -234,6 +234,10 @@ CONTENT SCHEMA (what the agent must produce as JSON)
                                bullet item. Rendered with "•" prefix and left
                                indent. Supports inline markup per item.
 
+      "ordered_list": [string], OPTIONAL. Ordered list. Each string is one
+                               numbered item (1. 2. 3.). Rendered with bold
+                               number prefix and left indent.
+
       "highlight": string,     OPTIONAL. A call-out / pull-quote box. Renders
                                with a colored left border and light background.
                                Use for key insights, warnings, or summary stats.
@@ -283,7 +287,8 @@ AGENT SYSTEM PROMPT (copy this into your agent's system instructions)
   2. Escape XML special characters in all text values:
        & → &amp;    < → &lt;    > → &gt;
   3. For "col_widths", provide values in cm as floats. Total must be ≤ 17.0.
-  4. "bullets" is a flat array of strings, not nested objects.
+  4. "bullets" is a flat array of strings for unordered lists; "ordered_list"
+     is a flat array of strings for numbered lists.
   5. "rows" in a table is a 2D array: outer array = rows, inner = cells.
      Cell count per row must exactly match the number of headers.
   6. "meta" date keys: use "date", "fecha", or "datum". If absent, today's
@@ -797,12 +802,22 @@ def make_body(text: str, S: dict) -> list:
 def make_bullets(items: list[str], S: dict) -> list:
     """
     Bulleted list. Each item gets a "•" prefix and left indent.
-    Using explicit bullet character in the text rather than ParagraphStyle
-    bulletText because bulletText requires careful bulletIndent tuning.
     """
     elems = []
     for item in items:
         elems.append(Paragraph(f"&bull; {safe_xml(item)}", S["bullet"]))
+    elems.append(Spacer(1, 4))
+    return elems
+
+
+def make_ordered_list(items: list[str], S: dict) -> list:
+    """
+    Ordered list. Each item gets a "1.", "2.", "3." prefix and left indent.
+    Uses the same ParagraphStyle S["bullet"] but with numeric prefix.
+    """
+    elems = []
+    for i, item in enumerate(items, start=1):
+        elems.append(Paragraph(f"<b>{i}.</b>&nbsp; {safe_xml(item)}", S["bullet"]))
     elems.append(Spacer(1, 4))
     return elems
 
@@ -979,6 +994,7 @@ def assemble_section(section: dict, S: dict, C: dict, text_width: float, toc: bo
     heading = section.get("heading", "")
     body    = section.get("body", "")
     bullets = section.get("bullets", [])
+    ordered = section.get("ordered_list", [])
     hl      = section.get("highlight", "")
     img     = section.get("image")
     code    = section.get("code")
@@ -994,6 +1010,8 @@ def assemble_section(section: dict, S: dict, C: dict, text_width: float, toc: bo
         body_elems += make_body(body, S)
     if bullets:
         body_elems += make_bullets(bullets, S)
+    if ordered:
+        body_elems += make_ordered_list(ordered, S)
     if hl:
         body_elems += make_highlight(hl, S, C, text_width)
     if img:
