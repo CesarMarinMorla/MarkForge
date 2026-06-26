@@ -58,38 +58,47 @@ REPORTLAB CORE CONCEPTS (read this before touching the code below)
      This engine uses BOTH: canvas for per-page chrome (header bar, footer),
      Platypus for the document body.
 
-  2. FLOWABLES
-     ──────────
-     Every Platypus content element is a Flowable. Key ones:
+   2. FLOWABLES
+      ──────────
+      Every Platypus content element is a Flowable. Key ones:
 
-     • Paragraph(text, style)       — Wrapped, styled text. Supports inline XML
-                                      markup: <b>, <i>, <font>, <br/>, <sub>,
-                                      <super>, <a href="...">.
-     • Spacer(width, height)        — Vertical whitespace. Width is ignored for
-                                      single-column; use 1 as a placeholder.
-     • Table(data, colWidths, style)— Grid layout. data is list-of-lists of
-                                      strings OR Flowables. Always provide
-                                      colWidths explicitly for predictability.
-     • HRFlowable(...)              — Horizontal rule / divider line.
-     • PageBreak()                  — Forces a new page in the story.
-     • KeepTogether([f1, f2, ...])  — Wraps multiple flowables so they're never
-                                      split across a page break (e.g., heading
-                                      + first paragraph of a section).
-     • Image(path, width, height)   — Embedded image. Scale explicitly.
+      • Paragraph(text, style)       — Wrapped, styled text. Supports inline XML
+                                       markup: <b>, <i>, <font>, <br/>, <sub>,
+                                       <super>, <a href="...">.
+      • Preformatted(text, style)    — Pre-formatted text that preserves
+                                       whitespace, indentation, and blank lines.
+                                       Uses Courier (monospace). Preferred for
+                                       code blocks over Paragraph.
+      • Spacer(width, height)        — Vertical whitespace. Width is ignored for
+                                       single-column; use 1 as a placeholder.
+      • Table(data, colWidths, style)— Grid layout. data is list-of-lists of
+                                       strings OR Flowables. Always provide
+                                       colWidths explicitly for predictability.
+      • HRFlowable(...)              — Horizontal rule / divider line.
+      • PageBreak()                  — Forces a new page in the story.
+      • KeepTogether([f1, f2, ...])  — Wraps multiple flowables so they're never
+                                       split across a page break (e.g., heading
+                                       + first paragraph of a section).
+      • Image(path, width, height)   — Embedded image. Scale explicitly.
 
-  3. PARAGRAPH INLINE MARKUP
-     ─────────────────────────
-     Paragraph text is XML. Special characters must be escaped:
-       & → &amp;    < → &lt;    > → &gt;
-     Supported tags:
-       <b>bold</b>                 <i>italic</i>
-       <u>underline</u>            <strike>strikethrough</strike>
-       <font name="..." size="..." color="...">text</font>
-       <sub>subscript</sub>        <super>superscript</super>
-       <br/>                       (line break within paragraph)
-       <a href="url">link</a>
-     ⚠ NEVER use Unicode sub/superscripts (₂, ³, etc.) — built-in fonts lack
-       these glyphs; they render as solid black rectangles.
+   3. PARAGRAPH INLINE MARKUP
+      ─────────────────────────
+      Paragraph text is XML. Special characters must be escaped:
+        & → &amp;    < → &lt;    > → &gt;
+      Supported tags:
+        <b>bold</b>                 <i>italic</i>
+        <u>underline</u>            <strike>strikethrough</strike>
+        <font name="..." size="..." color="...">text</font>
+        <sub>subscript</sub>        <super>superscript</super>
+        <br/>                       (line break within paragraph)
+        <a href="url">link</a>
+      ⚠ NEVER use Unicode sub/superscripts (₂, ³, etc.) — built-in fonts lack
+        these glyphs; they render as solid black rectangles.
+
+      ⚠ LINK COLOR: ReportLab 5.x ignores linkColor on ParagraphStyle.
+        To make links visible (colored + underlined), wrap <a> with <font>:
+          <font color="#E94560"><u><a href="url">text</a></u></font>
+        Use the theme's "accent" color (or primary) for consistency.
 
   4. PARAGRAPHSTYLE PROPERTIES
      ────────────────────────────
@@ -237,10 +246,11 @@ CONTENT SCHEMA (what the agent must produce as JSON)
         "caption":  string     OPTIONAL. Centered italic caption below the image.
       },
 
-      "code":      string,     OPTIONAL. Code block in monospace with gray
-                               background. Escape XML as usual.
-      "language":  string,     OPTIONAL. Shown as a label above the code block.
-                               Only meaningful when "code" is present.
+      "code":      string,     OPTIONAL. Code block in Courier monospace with
+                               gray background. Preserves whitespace exactly.
+                               ⚠ ASCII ONLY — Unicode box-drawing chars (├ ─ │)
+                               render as black blocks. Use | - + ' -> instead.
+      "language":  string,     ACCEPTED but NOT RENDERED (legacy).
 
       "table": {               OPTIONAL. A data table.
         "headers": [string],   Column header labels. Rendered with white text
@@ -276,11 +286,76 @@ AGENT SYSTEM PROMPT (copy this into your agent's system instructions)
   4. "bullets" is a flat array of strings, not nested objects.
   5. "rows" in a table is a 2D array: outer array = rows, inner = cells.
      Cell count per row must exactly match the number of headers.
-   6. If no date key ("date", "fecha", or "datum") is provided in "meta", today's date will be used automatically as "date".
+  6. "meta" date keys: use "date", "fecha", or "datum". If absent, today's
+     date auto-fills as "date".
   7. Keep "highlight" to 1–3 sentences max. It's a call-out, not a paragraph.
   8. Do not put HTML or Markdown inside text values. Only use these XML tags:
        <b>text</b>   <i>text</i>   <br/>   <sub>text</sub>   <super>text</super>
-  9. Output nothing but the JSON object.
+  9. For clickable links with color, wrap <a> with <font color="..."><u>:
+       <font color="#E94560"><u><a href="url">label</a></u></font>
+  10. For code blocks (preserve whitespace/indentation), use "code" field.
+      Do NOT use body text with code — Paragraph collapses whitespace.
+      Use ASCII characters only (no Unicode box-drawing: ├ ─ │ → ↓).
+      Courier font renders these as black blocks. Use ASCII: | - + ' ->
+  11. Images: provide "image" with "path" (required) + optional width(cm),
+      height(cm), and "caption".
+  12. Page size: "page_size" can be "A4" (default), "Letter", "Legal".
+      "orientation": "portrait" (default) or "landscape".
+  13. Optional flags: "show_toc" (bool), "show_cover" (bool, default true),
+      "show_footer_date" (bool, default true).
+
+
+  ─────────────────────────────────────────────────────────────────────────
+  MARKDOWN → JSON CONVERSION GUIDE (for agents converting .md to this schema)
+  ─────────────────────────────────────────────────────────────────────────
+
+  When converting a Markdown document to this engine's JSON schema:
+
+  1. YAML frontmatter (between ---):
+     • title → top-level "title"
+     • subtitle/author/date → "meta" dict (use "date", "fecha", or "datum")
+     • titlepage-rule-color → "theme" > "primary" / "accent"
+     • toc: true → "show_toc": true
+
+  2. Headings: Each ## or ### becomes a "section" with "heading".
+     Preserve numbering if present (e.g., "1. Introduction").
+     Nest sub-headings as separate sections after the parent.
+
+  3. Body paragraphs: Each paragraph of text between headings → "body".
+     Join consecutive paragraphs with <br/> tags.
+     Bold (**text**) → <b>text</b>
+     Italic (*text*) → <i>text</i>
+     Inline code (`code`) → use body text (no inline monospace tag available)
+     Links [text](url) → <font color="#E94560"><u><a href="url">text</a></u></font>
+
+  4. Code blocks (``` blocks):
+     • Use "code" field for the block content
+     • Set "language" to the language hint (accepted but not displayed)
+     • ⚠ Replace Unicode box-drawing (├ ─ │ → ↓) with ASCII: | - + ' ->
+     • ⚠ Replace Unicode arrows (→ ⇒) with ASCII: -> =>
+
+  5. Tables:
+     • Convert markdown tables to "table" with "headers" and "rows"
+     • Estimate col_widths based on column content (total ≤ 17.0 cm)
+     • A reasonable default: [3.0, 3.0, ...] for N equal columns
+
+  6. Lists:
+     • Unordered lists (- / * items) → "bullets" array
+     • Ordered lists (1. 2. 3.) → NOT YET SUPPORTED; use "bullets" with
+       manual numbering like "1. item" as bullet text
+     • Nested lists → flatten with indentation hints in text
+
+  7. Blockquotes (> text) → "highlight" field
+     • Keep to 1-3 sentences
+
+  8. Horizontal rules (---) → Ignore (sections have their own rules)
+
+  9. Images (![alt](path)):
+     • Use "image" > "path" for the file path
+     • Omit width/height to use full text width default
+     • Add "caption" with alt text if available
+
+  10. Footnotes / citations → "note" field below the section
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 KNOWN PITFALLS
@@ -301,6 +376,26 @@ KNOWN PITFALLS
     ReportLab ignores the keep and splits it anyway. Keep blocks short.
   ✗ Registering a TTF font but then referencing a variant name that was not
     registered → Silently falls back to Helvetica. Register each variant.
+  ✗ Courier (built-in PDF font) has NO Unicode glyphs (├ ─ │ → ↓).
+    These characters render as solid black rectangles. Use ONLY ASCII:
+      Tree:  |--  |   '--
+      Arrows: ->   =>
+      Ticks:  + or *
+  ✗ Paragraph COLLAPSES whitespace (tabs, spaces, newlines). For code
+    or any text where indentation matters, use the "code" field (which
+    uses Preformatted internally) instead of "body".
+  ✗ linkColor on ParagraphStyle is IGNORED by ReportLab 5.x.
+    Always use inline <font color="..."><u> around <a href="..."> tags.
+  ✗ multiBuild (used for TOC) does TWO rendering passes. The page chrome
+    callbacks fire twice. Generation date in footer is the same on both
+    passes (same datetime.now() call within the same second).
+  ✗ Image path that does not exist → Renders a fallback text note
+    ("[Image not found: path]") instead of crashing.
+  ✗ show_cover=False + show_toc=True → TOC still renders as the first
+    page of content (no cover). Works correctly.
+  ✗ "meta" keys with "date"/"fecha"/"datum" prevent auto-add of today's
+    date. Other date-like keys are not detected — the engine only checks
+    these three lowercased names.
 """
 
 import json
