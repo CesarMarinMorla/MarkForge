@@ -228,6 +228,11 @@ CONTENT SCHEMA (what the agent must produce as JSON)
         "caption":  string     OPTIONAL. Centered italic caption below the image.
       },
 
+      "code":      string,     OPTIONAL. Code block in monospace with gray
+                               background. Escape XML as usual.
+      "language":  string,     OPTIONAL. Shown as a label above the code block.
+                               Only meaningful when "code" is present.
+
       "table": {               OPTIONAL. A data table.
         "headers": [string],   Column header labels. Rendered with white text
                                on dark (primary color) background.
@@ -798,6 +803,49 @@ def make_table(headers: list[str], rows: list[list[str]],
     return [t, Spacer(1, 8)]
 
 
+def make_code(code_text: str, language: str, C: dict, text_width: float) -> list:
+    """
+    Code block with monospace font, light gray background, and optional
+    language label in the top-right corner.
+    """
+    code_style = ParagraphStyle(
+        "code_block",
+        fontName="Courier",
+        fontSize=8,
+        leading=11,
+        textColor=C["text"],
+        backColor=C["light"],
+    )
+    inner = Paragraph(safe_xml(code_text), code_style)
+    rows = []
+    if language:
+        lang_style = ParagraphStyle(
+            "code_lang",
+            fontName="Helvetica-Oblique",
+            fontSize=7,
+            leading=9,
+            textColor=C["muted"],
+            alignment=TA_RIGHT,
+        )
+        rows.append([Paragraph(safe_xml(language), lang_style)])
+    rows.append([inner])
+
+    box = Table(
+        rows,
+        colWidths=[text_width],
+        style=TableStyle([
+            ("BACKGROUND",    (0, 0), (-1, -1), C["light"]),
+            ("LEFTPADDING",   (0, 0), (-1, -1), 10),
+            ("RIGHTPADDING",  (0, 0), (-1, -1), 10),
+            ("TOPPADDING",    (0, 0), (-1, -1), 6),
+            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ] + ([
+            ("LINEBELOW", (0, 0), (-1, 0), 0.5, colors.HexColor("#DDDDDD")),
+        ] if language else [])),
+    )
+    return [box, Spacer(1, 8)]
+
+
 def make_note(text: str, S: dict) -> list:
     """Small italic note / source citation below a section."""
     return [Paragraph(safe_xml(text), S["note"]), Spacer(1, 4)]
@@ -822,6 +870,8 @@ def assemble_section(section: dict, S: dict, C: dict, text_width: float) -> list
     bullets = section.get("bullets", [])
     hl      = section.get("highlight", "")
     img     = section.get("image")
+    code    = section.get("code")
+    lang    = section.get("language", "")
     tbl     = section.get("table")
     note    = section.get("note", "")
 
@@ -837,6 +887,8 @@ def assemble_section(section: dict, S: dict, C: dict, text_width: float) -> list
         body_elems += make_highlight(hl, S, C, text_width)
     if img:
         body_elems += make_image(img, S, text_width)
+    if code:
+        body_elems += make_code(code, lang, C, text_width)
     if tbl:
         body_elems += make_table(
             tbl.get("headers", []),
