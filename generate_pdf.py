@@ -6,6 +6,14 @@ content = {
     "output": "informe-inventario-itu.pdf",
     "show_toc": True,
     "watermark": "CONFIDENCIAL",
+    "fonts": {
+        "sans": {
+            "regular": "/Users/cesar/Library/Fonts/SourceSans3[wght].ttf",
+        },
+        "mono": {
+            "regular": "/Users/cesar/Library/Fonts/SourceCodePro[wght].ttf",
+        },
+    },
     "theme": {
         "primary": "#0D3B66",
         "accent":  "#E94560",

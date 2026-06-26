@@ -201,6 +201,27 @@ CONTENT SCHEMA (what the agent must produce as JSON)
                                "BORRADOR", "DOCUMENTO INTERNO"). Drawn
                                diagonally across every page at low opacity.
 
+  "fonts": {                   OPTIONAL. Register custom TTF fonts.
+                               All keys are optional; defaults to built-in
+                               Helvetica + Courier.
+    "sans": {                  Replaces Helvetica (body, headings, tables).
+      "regular":     string,   Path to .ttf file.
+      "bold":        string,   Path to bold .ttf variant.
+      "italic":      string,   Path to italic .ttf variant.
+      "bold_italic": string,   Path to bold-italic .ttf variant.
+    },
+    "mono": {                  Replaces Courier (code blocks).
+      "regular":     string,   Path to .ttf file.
+      "bold":        string,   Path to bold .ttf variant.
+    },
+    "serif": {                 Replaces Times-Roman (currently unused).
+      "regular":     string,
+      "bold":        string,
+      "italic":      string,
+      "bold_italic": string,
+    }
+  },
+
   "theme": {                   OPTIONAL. Override brand colors. All values are
                                hex strings "#RRGGBB".
     "primary":  "#1A1A2E",     Header bar, headings, table header background.
@@ -418,6 +439,8 @@ from datetime import datetime
 from pathlib import Path
 
 from reportlab.lib import colors
+from reportlab.pdfbase import pdfmetrics
+from reportlab.pdfbase.ttfonts import TTFont
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
 from reportlab.lib.pagesizes import A4, LETTER, LEGAL
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -462,6 +485,84 @@ def resolve_page_size(content: dict) -> tuple:
     return pagesize
 
 MARGIN = 2.0 * cm   # Left/right margin. Top/bottom set separately.
+
+# ─────────────────────────────────────────────────────────────────────────────
+# FONT REGISTRATION
+# ─────────────────────────────────────────────────────────────────────────────
+
+DEFAULT_FONTS = {
+    "sans":       ("Helvetica",        "Helvetica-Bold",  "Helvetica-Oblique",  "Helvetica-BoldOblique"),
+    "mono":       ("Courier",          "Courier-Bold",    "Courier-Oblique",    "Courier-BoldOblique"),
+    "serif":      ("Times-Roman",      "Times-Bold",      "Times-Italic",       "Times-BoldItalic"),
+}
+
+def register_user_fonts(fonts_config: dict | None) -> dict:
+    """
+    Register TTF fonts from the content's "fonts" block and return a
+    dict of role → (regular, bold, italic, bold_italic) font names.
+
+    Expected schema:
+      "fonts": {
+        "sans": { "regular": "path", "bold": "path", "italic": "path", "bold_italic": "path" },
+        "mono": { "regular": "path", "bold": "path" },
+        "serif": { "regular": "path", ... }
+      }
+
+    All keys are optional. Unspecified roles fall back to built-in fonts.
+    """
+    resolved = dict(DEFAULT_FONTS)
+
+    if not fonts_config:
+        return resolved
+
+    for role in ("sans", "mono", "serif"):
+        cfg = fonts_config.get(role)
+        if not cfg:
+            continue
+
+        reg_path = cfg.get("regular", "")
+        bold_path = cfg.get("bold", "")
+        italic_path = cfg.get("italic", "")
+        bi_path = cfg.get("bold_italic", "")
+
+        reg_name = f"Custom{role.capitalize()}"
+        bold_name = f"Custom{role.capitalize()}Bold"
+        italic_name = f"Custom{role.capitalize()}Italic"
+        bi_name = f"Custom{role.capitalize()}BoldItalic"
+
+        if reg_path:
+            try:
+                pdfmetrics.registerFont(TTFont(reg_name, reg_path))
+            except Exception:
+                reg_name = resolved[role][0]
+
+        if bold_path and reg_name.startswith("Custom"):
+            try:
+                pdfmetrics.registerFont(TTFont(bold_name, bold_path))
+            except Exception:
+                bold_name = resolved[role][1]
+        elif not bold_path:
+            bold_name = resolved[role][1]
+
+        if italic_path and reg_name.startswith("Custom"):
+            try:
+                pdfmetrics.registerFont(TTFont(italic_name, italic_path))
+            except Exception:
+                italic_name = resolved[role][2]
+        elif not italic_path:
+            italic_name = resolved[role][2]
+
+        if bi_path and reg_name.startswith("Custom"):
+            try:
+                pdfmetrics.registerFont(TTFont(bi_name, bi_path))
+            except Exception:
+                bi_name = resolved[role][3]
+        elif not bi_path:
+            bi_name = resolved[role][3]
+
+        resolved[role] = (reg_name, bold_name, italic_name, bi_name)
+
+    return resolved
 
 # ─────────────────────────────────────────────────────────────────────────────
 # THEME BUILDER
@@ -599,9 +700,11 @@ class PageChrome:
 # and colors. Defining our own gives full predictability and easy theming.
 # ─────────────────────────────────────────────────────────────────────────────
 
-def build_styles(C: dict) -> dict:
+def build_styles(C: dict, F: dict | None = None) -> dict:
     """
     Build the full style sheet, themed with the resolved color dict C.
+    F is an optional font mapping from register_user_fonts().
+    Falls back to Helvetica/Courier built-in fonts for any role.
 
     Naming convention:
       cover_*     — Cover page elements (large, display-scale)
@@ -610,20 +713,27 @@ def build_styles(C: dict) -> dict:
       table_*     — Table cell styles
       meta_*      — Metadata / caption / label text
     """
+    if F is None:
+        F = DEFAULT_FONTS
+
+    sans_reg, sans_bold, sans_ital, sans_bi = F["sans"]
+    mono_reg, mono_bold, _, _            = F["mono"]
+    serif_reg, serif_bold, serif_ital, _ = F["serif"]
+
     return {
 
         # ── COVER PAGE ────────────────────────────────────────────────────
         "cover_title": ParagraphStyle(
             "cover_title",
-            fontName  = "Helvetica-Bold",
+            fontName  = sans_bold,
             fontSize  = 30,
-            leading   = 36,          # line height = 36pt
+            leading   = 36,
             textColor = C["primary"],
             spaceAfter= 6,
         ),
         "cover_subtitle": ParagraphStyle(
             "cover_subtitle",
-            fontName  = "Helvetica",
+            fontName  = sans_reg,
             fontSize  = 13,
             leading   = 18,
             textColor = C["muted"],
@@ -633,7 +743,7 @@ def build_styles(C: dict) -> dict:
         # ── SECTION HEADINGS ──────────────────────────────────────────────
         "section_heading": ParagraphStyle(
             "section_heading",
-            fontName    = "Helvetica-Bold",
+            fontName    = sans_bold,
             fontSize    = 13,
             leading     = 17,
             textColor   = C["primary"],
@@ -644,29 +754,29 @@ def build_styles(C: dict) -> dict:
         # ── BODY TEXT ─────────────────────────────────────────────────────
         "body": ParagraphStyle(
             "body",
-            fontName  = "Helvetica",
+            fontName  = sans_reg,
             fontSize  = 10,
-            leading   = 15,          # 1.5× fontSize — comfortable reading
+            leading   = 15,
             textColor = C["text"],
             spaceAfter= 8,
-            alignment = TA_JUSTIFY,  # Justified body text = professional look
+            alignment = TA_JUSTIFY,
             linkColor = C["accent"],
             linkUnderline = True,
         ),
         "bullet": ParagraphStyle(
             "bullet",
-            fontName    = "Helvetica",
+            fontName    = sans_reg,
             fontSize    = 10,
             leading     = 14,
             textColor   = C["text"],
-            leftIndent  = 14,        # indent from left margin
+            leftIndent  = 14,
             spaceAfter  = 3,
-            linkColor = C["accent"],
+            linkColor   = C["accent"],
             linkUnderline = True,
         ),
         "note": ParagraphStyle(
             "note",
-            fontName  = "Helvetica-Oblique",
+            fontName  = sans_ital,
             fontSize  = 8,
             leading   = 11,
             textColor = C["muted"],
@@ -678,7 +788,7 @@ def build_styles(C: dict) -> dict:
         # ── HIGHLIGHT BOX ─────────────────────────────────────────────────
         "highlight": ParagraphStyle(
             "highlight",
-            fontName  = "Helvetica-Bold",
+            fontName  = sans_bold,
             fontSize  = 10,
             leading   = 15,
             textColor = C["primary"],
@@ -688,14 +798,14 @@ def build_styles(C: dict) -> dict:
         # ── TABLE CELLS ───────────────────────────────────────────────────
         "table_header": ParagraphStyle(
             "table_header",
-            fontName  = "Helvetica-Bold",
+            fontName  = sans_bold,
             fontSize  = 9,
             leading   = 12,
             textColor = colors.white,
         ),
         "table_cell": ParagraphStyle(
             "table_cell",
-            fontName  = "Helvetica",
+            fontName  = sans_reg,
             fontSize  = 9,
             leading   = 12,
             textColor = C["text"],
@@ -704,14 +814,14 @@ def build_styles(C: dict) -> dict:
         # ── COVER PAGE METADATA ───────────────────────────────────────────
         "meta_key": ParagraphStyle(
             "meta_key",
-            fontName  = "Helvetica-Bold",
+            fontName  = sans_bold,
             fontSize  = 9,
             leading   = 13,
             textColor = C["muted"],
         ),
         "meta_value": ParagraphStyle(
             "meta_value",
-            fontName  = "Helvetica",
+            fontName  = sans_reg,
             fontSize  = 9,
             leading   = 13,
             textColor = C["text"],
@@ -957,7 +1067,8 @@ def make_table(headers: list[str], rows: list[list[str]],
     return [t, Spacer(1, 8)]
 
 
-def make_code(code_text: str, language: str, C: dict, text_width: float) -> list:
+def make_code(code_text: str, language: str, C: dict, text_width: float,
+              mono_font: str = "Courier") -> list:
     """
     Code block with monospace font and light gray background.
 
@@ -970,7 +1081,7 @@ def make_code(code_text: str, language: str, C: dict, text_width: float) -> list
     """
     code_style = ParagraphStyle(
         "code_block",
-        fontName="Courier",
+        fontName=mono_font,
         fontSize=8,
         leading=11,
         textColor=C["text"],
@@ -1002,7 +1113,8 @@ def make_note(text: str, S: dict) -> list:
 # Converts one section dict → list of Flowables.
 # ─────────────────────────────────────────────────────────────────────────────
 
-def assemble_section(section: dict, S: dict, C: dict, text_width: float, toc: bool = False) -> list:
+def assemble_section(section: dict, S: dict, C: dict, text_width: float,
+                     toc: bool = False, mono_font: str = "Courier") -> list:
     """
     Build all flowables for one section from the content JSON.
 
@@ -1040,7 +1152,7 @@ def assemble_section(section: dict, S: dict, C: dict, text_width: float, toc: bo
     if img:
         body_elems += make_image(img, S, text_width)
     if code:
-        body_elems += make_code(code, lang, C, text_width)
+        body_elems += make_code(code, lang, C, text_width, mono_font)
     if tbl:
         body_elems += make_table(
             tbl.get("headers", []),
@@ -1092,8 +1204,11 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
     page_w, page_h = resolve_page_size(content)
     text_width = page_w - 2 * MARGIN
 
+    # ── Register custom fonts ────────────────────────────────────────────
+    F = register_user_fonts(content.get("fonts"))
+
     # ── Build style sheet ────────────────────────────────────────────────
-    S = build_styles(C)
+    S = build_styles(C, F)
 
     # ── Page chrome (header/footer) ──────────────────────────────────────
     chrome = PageChrome(
@@ -1148,8 +1263,9 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
         story.append(Spacer(1, 12))
 
     # Sections
+    mono_font = F["mono"][0]
     for section in content.get("sections", []):
-        story += assemble_section(section, S, C, text_width, show_toc)
+        story += assemble_section(section, S, C, text_width, show_toc, mono_font)
 
     # ── Render ───────────────────────────────────────────────────────────
     # Use multiBuild so TableOfContents can collect entries on pass one

@@ -1,5 +1,17 @@
 # Changelog
 
+## v1.1.0 (2026-06-25)
+
+Custom fonts via JSON schema. Source Sans 3 + Source Code Pro demo.
+
+- **Custom fonts**: `"fonts"` block in JSON registers TTF files via ReportLab's
+  pdfmetrics/TTFont. Roles (`sans`, `mono`, `serif`) map to style sheet;
+  missing paths fall back to Helvetica/Courier/Times built-ins.
+- **register_user_fonts()**: merges user TTF config with DEFAULT_FONTS, returns
+  a role→name tuple dict consumed by `build_styles()`, `make_code()`.
+- All ParagraphStyles in `build_styles()` now source font names from the `F`
+  dict instead of hardcoded "Helvetica-*" / "Courier".
+
 ## v1.0.0 (2026-06-25)
 
 Primera versión estable del **Agent PDF Engine**. Motor determinista para generacion de PDF profesional a partir de JSON, usando ReportLab Platypus.
@@ -48,5 +60,4 @@ python pdf_engine.py path/to/content.json output.pdf
 - Courier no soporta Unicode: usar solo ASCII para bloques de codigo (sin ├ ─ │ → ↓)
 - `linkColor` en ParagraphStyle es ignorado por ReportLab 5.x: usar `<font color>` inline
 - Ordered lists no soportadas: simular con bullets manuales tipo `"1. item"`
-- Sin watermarks, sin form fields, sin custom fonts via schema
-- Sin validacion estricta de schema (JSON malformado da errores de Python crudos)
+- Sin form fields, sin validacion estricta de schema (JSON malformado da errores de Python crudos)
