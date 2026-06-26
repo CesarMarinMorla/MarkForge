@@ -290,7 +290,6 @@ content = {
         },
         {
             "heading": "Referencias",
-            "page_break": True,
             "bullets": [
                 "Documentaci\u00f3n oficial de Kubernetes: Network Policies. <font color=\"#E94560\"><u><a href=\"https://kubernetes.io/docs/concepts/services-networking/network-policies/\">kubernetes.io</a></u></font>",
                 "OWASP Foundation: LDAP Injection Prevention Cheat Sheet. <font color=\"#E94560\"><u><a href=\"https://cheatsheetseries.owasp.org/cheatsheets/LDAP_Injection_Prevention_Cheat_Sheet.html\">cheatsheetseries.owasp.org</a></u></font>",
