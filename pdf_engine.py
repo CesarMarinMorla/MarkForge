@@ -175,6 +175,10 @@ CONTENT SCHEMA (what the agent must produce as JSON)
 
   "output":   string,          OPTIONAL. Output file path. Default: "output.pdf"
 
+  "page_size":    string,      OPTIONAL. "A4" (default), "Letter", or "Legal".
+
+  "orientation":  string,      OPTIONAL. "portrait" (default) or "landscape".
+
   "theme": {                   OPTIONAL. Override brand colors. All values are
                                hex strings "#RRGGBB".
     "primary":  "#1A1A2E",     Header bar, headings, table header background.
@@ -287,7 +291,7 @@ from pathlib import Path
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY, TA_LEFT, TA_RIGHT
-from reportlab.lib.pagesizes import A4
+from reportlab.lib.pagesizes import A4, LETTER, LEGAL
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas as pdfgen_canvas
@@ -303,12 +307,30 @@ from reportlab.platypus import (
 )
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CONSTANTS
+# PAGE SIZE RESOLUTION
 # ─────────────────────────────────────────────────────────────────────────────
 
-PAGE_W, PAGE_H = A4          # A4 = 595.28 × 841.89 pt
-MARGIN         = 2.0 * cm   # Left/right margin. Top/bottom set separately.
-TEXT_WIDTH     = PAGE_W - 2 * MARGIN   # Usable text column width ≈ 17 cm
+PAGE_SIZES = {
+    "A4":     A4,
+    "Letter": LETTER,
+    "Legal":  LEGAL,
+}
+
+def resolve_page_size(content: dict) -> tuple:
+    """
+    Resolve (width, height) in points from content["page_size"]
+    and content["orientation"].
+
+    page_size:  "A4" (default), "Letter", or "Legal".
+    orientation: "portrait" (default) or "landscape".
+    """
+    raw   = content.get("page_size", "A4")
+    pagesize = PAGE_SIZES.get(raw, A4)
+    if content.get("orientation", "portrait") == "landscape":
+        pagesize = (pagesize[1], pagesize[0])
+    return pagesize
+
+MARGIN = 2.0 * cm   # Left/right margin. Top/bottom set separately.
 
 # ─────────────────────────────────────────────────────────────────────────────
 # THEME BUILDER
@@ -375,48 +397,49 @@ class PageChrome:
         self.version = version
         self.C       = theme    # shorthand: C["primary"], C["accent"], etc.
 
+    def __init__(self, title: str, version: str, theme: dict, margin: float):
+        self.title   = title.upper()
+        self.version = version
+        self.C       = theme
+        self.margin  = margin
+
     def __call__(self, c: pdfgen_canvas.Canvas, doc):
         """Called by SimpleDocTemplate.build() for every page."""
-        c.saveState()          # ← CRITICAL: isolate state changes
+        c.saveState()
         self._header(c, doc)
         self._footer(c, doc)
-        c.restoreState()       # ← CRITICAL: restore so Platypus isn't affected
+        c.restoreState()
 
     def _header(self, c, doc):
-        # Filled rectangle: x=0, y=(PAGE_H - header height), w=full, h=bar
+        pw, ph = doc.pagesize
         c.setFillColor(self.C["primary"])
-        c.rect(0, PAGE_H - self.HEADER_H, PAGE_W, self.HEADER_H,
+        c.rect(0, ph - self.HEADER_H, pw, self.HEADER_H,
                fill=True, stroke=False)
 
-        # Document title — left-aligned in the bar
         c.setFillColor(colors.white)
         c.setFont("Helvetica-Bold", 10)
-        # Vertical center of bar: y = (PAGE_H - HEADER_H) + (HEADER_H / 2) - font_size/3
-        bar_mid = PAGE_H - self.HEADER_H + (self.HEADER_H / 2)
-        c.drawString(MARGIN, bar_mid - 4, self.title)
+        bar_mid = ph - self.HEADER_H + (self.HEADER_H / 2)
+        c.drawString(self.margin, bar_mid - 4, self.title)
 
-        # Version / subtitle — right-aligned in the bar
         if self.version:
             c.setFont("Helvetica", 8)
             c.setFillColor(colors.HexColor("#AAAACC"))
-            c.drawRightString(PAGE_W - MARGIN, bar_mid - 3, self.version)
+            c.drawRightString(pw - self.margin, bar_mid - 3, self.version)
 
     def _footer(self, c, doc):
-        # Accent rule across footer
+        pw, _ = doc.pagesize
         c.setStrokeColor(self.C["accent"])
         c.setLineWidth(1.5)
-        c.line(MARGIN, self.FOOTER_Y, PAGE_W - MARGIN, self.FOOTER_Y)
+        c.line(self.margin, self.FOOTER_Y, pw - self.margin, self.FOOTER_Y)
 
         c.setFont("Helvetica", 8)
 
-        # Page number — centered
         c.setFillColor(self.C["muted"])
-        c.drawCentredString(PAGE_W / 2, self.FOOTER_Y - 10,
+        c.drawCentredString(pw / 2, self.FOOTER_Y - 10,
                             f"— {doc.page} —")
 
-        # Generation date — right side
         date_str = datetime.now().strftime("%d %b %Y")
-        c.drawRightString(PAGE_W - MARGIN, self.FOOTER_Y - 10, date_str)
+        c.drawRightString(pw - self.margin, self.FOOTER_Y - 10, date_str)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -550,7 +573,7 @@ def build_styles(C: dict) -> dict:
 # ─────────────────────────────────────────────────────────────────────────────
 
 def make_cover(title: str, subtitle: str, meta: dict,
-               S: dict, C: dict) -> list:
+               S: dict, C: dict, text_width: float) -> list:
     """
     Build the cover page flowable list.
 
@@ -583,7 +606,7 @@ def make_cover(title: str, subtitle: str, meta: dict,
 
     layout = Table(
         [[accent_bar, title_block]],
-        colWidths=[1.2 * cm, TEXT_WIDTH - 1.2 * cm],
+        colWidths=[1.2 * cm, text_width - 1.2 * cm],
         style=TableStyle([
             ("VALIGN",       (0, 0), (-1, -1), "TOP"),
             ("LEFTPADDING",  (1, 0), (1, 0),   14),
@@ -605,7 +628,7 @@ def make_cover(title: str, subtitle: str, meta: dict,
         ]
         meta_table = Table(
             rows,
-            colWidths=[4 * cm, TEXT_WIDTH - 4 * cm],
+            colWidths=[4 * cm, text_width - 4 * cm],
             style=TableStyle([
                 ("TOPPADDING",    (0, 0), (-1, -1), 3),
                 ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
@@ -652,7 +675,7 @@ def make_bullets(items: list[str], S: dict) -> list:
     return elems
 
 
-def make_highlight(text: str, S: dict, C: dict) -> list:
+def make_highlight(text: str, S: dict, C: dict, text_width: float) -> list:
     """
     Call-out box: light background, colored left border, bold text.
     Implemented as a single-cell Table so we can control the left border
@@ -661,7 +684,7 @@ def make_highlight(text: str, S: dict, C: dict) -> list:
     inner = Paragraph(safe_xml(text), S["highlight"])
     box = Table(
         [[inner]],
-        colWidths=[TEXT_WIDTH],
+        colWidths=[text_width],
         style=TableStyle([
             ("BACKGROUND",   (0, 0), (-1, -1), C["light"]),
             ("LEFTPADDING",  (0, 0), (-1, -1), 14),
@@ -677,7 +700,7 @@ def make_highlight(text: str, S: dict, C: dict) -> list:
 
 def make_table(headers: list[str], rows: list[list[str]],
                col_widths_cm: list[float] | None,
-               S: dict, C: dict) -> list:
+               S: dict, C: dict, text_width: float) -> list:
     """
     Data table with a styled header row and alternating row backgrounds.
 
@@ -706,7 +729,7 @@ def make_table(headers: list[str], rows: list[list[str]],
         col_w = [w * cm for w in col_widths_cm]
     else:
         n = len(headers)
-        col_w = [TEXT_WIDTH / n] * n
+        col_w = [text_width / n] * n
 
     t = Table(
         all_data,
@@ -741,7 +764,7 @@ def make_note(text: str, S: dict) -> list:
 # Converts one section dict → list of Flowables.
 # ─────────────────────────────────────────────────────────────────────────────
 
-def assemble_section(section: dict, S: dict, C: dict) -> list:
+def assemble_section(section: dict, S: dict, C: dict, text_width: float) -> list:
     """
     Build all flowables for one section from the content JSON.
 
@@ -766,13 +789,13 @@ def assemble_section(section: dict, S: dict, C: dict) -> list:
     if bullets:
         body_elems += make_bullets(bullets, S)
     if hl:
-        body_elems += make_highlight(hl, S, C)
+        body_elems += make_highlight(hl, S, C, text_width)
     if tbl:
         body_elems += make_table(
             tbl.get("headers", []),
             tbl.get("rows", []),
             tbl.get("col_widths"),
-            S, C,
+            S, C, text_width,
         )
     if note:
         body_elems += make_note(note, S)
@@ -814,6 +837,10 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
     if not date_keys.intersection(k.lower() for k in meta):
         meta["date"] = datetime.now().strftime("%B %d, %Y")
 
+    # ── Resolve page size ────────────────────────────────────────────────
+    page_w, page_h = resolve_page_size(content)
+    text_width = page_w - 2 * MARGIN
+
     # ── Build style sheet ────────────────────────────────────────────────
     S = build_styles(C)
 
@@ -822,6 +849,7 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
         title   = content.get("title", "Document"),
         version = meta.get("version", ""),
         theme   = C,
+        margin  = MARGIN,
     )
 
     # ── Document template ────────────────────────────────────────────────
@@ -829,11 +857,11 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
     # render behind the header bar. bottomMargin must clear the footer.
     doc = SimpleDocTemplate(
         out,
-        pagesize     = A4,
+        pagesize     = (page_w, page_h),
         leftMargin   = MARGIN,
         rightMargin  = MARGIN,
-        topMargin    = 2.2 * cm,   # 0.4 cm clearance above header bar
-        bottomMargin = 2.0 * cm,   # clearance for footer
+        topMargin    = 2.2 * cm,
+        bottomMargin = 2.0 * cm,
     )
 
     # ── Build story ──────────────────────────────────────────────────────
@@ -844,17 +872,14 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
         content.get("title", "Untitled"),
         content.get("subtitle", ""),
         meta,
-        S, C,
+        S, C, text_width,
     )
 
     # Sections
     for section in content.get("sections", []):
-        story += assemble_section(section, S, C)
+        story += assemble_section(section, S, C, text_width)
 
     # ── Render ───────────────────────────────────────────────────────────
-    # onFirstPage and onLaterPages both use the same chrome callback.
-    # You can pass different functions here if the cover page should have
-    # no header (e.g., onFirstPage=None, onLaterPages=chrome).
     doc.build(story, onFirstPage=chrome, onLaterPages=chrome)
 
     return str(Path(out).resolve())
