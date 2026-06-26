@@ -530,6 +530,8 @@ def build_styles(C: dict) -> dict:
             textColor = C["text"],
             spaceAfter= 8,
             alignment = TA_JUSTIFY,  # Justified body text = professional look
+            linkColor = C["accent"],
+            linkUnderline = True,
         ),
         "bullet": ParagraphStyle(
             "bullet",
@@ -539,6 +541,8 @@ def build_styles(C: dict) -> dict:
             textColor   = C["text"],
             leftIndent  = 14,        # indent from left margin
             spaceAfter  = 3,
+            linkColor = C["accent"],
+            linkUnderline = True,
         ),
         "note": ParagraphStyle(
             "note",
@@ -547,6 +551,8 @@ def build_styles(C: dict) -> dict:
             leading   = 11,
             textColor = C["muted"],
             spaceAfter= 6,
+            linkColor = C["accent"],
+            linkUnderline = True,
         ),
 
         # ── HIGHLIGHT BOX ─────────────────────────────────────────────────
