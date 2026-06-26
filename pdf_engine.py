@@ -179,6 +179,12 @@ CONTENT SCHEMA (what the agent must produce as JSON)
 
   "orientation":  string,      OPTIONAL. "portrait" (default) or "landscape".
 
+  "show_toc":   boolean,       OPTIONAL. true = insert a Table of Contents
+                               after the cover page. Default: false.
+
+  "show_cover": boolean,       OPTIONAL. false = skip the cover page.
+                               Default: true.
+
   "theme": {                   OPTIONAL. Override brand colors. All values are
                                hex strings "#RRGGBB".
     "primary":  "#1A1A2E",     Header bar, headings, table header background.
@@ -318,6 +324,7 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
+from reportlab.platypus.tableofcontents import TableOfContents
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PAGE SIZE RESOLUTION
@@ -655,18 +662,22 @@ def make_cover(title: str, subtitle: str, meta: dict,
     return elems
 
 
-def make_section_header(heading: str, S: dict, C: dict) -> list:
+def make_section_header(heading: str, S: dict, C: dict, toc: bool = False) -> list:
     """
     Render a section heading with a two-tone horizontal rule above it.
     Returns [HRFlowable, Paragraph] — these two are always KeepTogether'd
     with the first body element so headings never orphan at a page bottom.
+    If toc=True, marks the Paragraph for TableOfContents.
     """
+    p = Paragraph(safe_xml(heading), S["section_heading"])
+    if toc:
+        p._tocInfo = (1, heading)
     return [
         HRFlowable(
             width="100%", thickness=2,
             color=C["accent"], spaceAfter=4, spaceBefore=10,
         ),
-        Paragraph(safe_xml(heading), S["section_heading"]),
+        p,
     ]
 
 
@@ -856,7 +867,7 @@ def make_note(text: str, S: dict) -> list:
 # Converts one section dict → list of Flowables.
 # ─────────────────────────────────────────────────────────────────────────────
 
-def assemble_section(section: dict, S: dict, C: dict, text_width: float) -> list:
+def assemble_section(section: dict, S: dict, C: dict, text_width: float, toc: bool = False) -> list:
     """
     Build all flowables for one section from the content JSON.
 
@@ -875,7 +886,7 @@ def assemble_section(section: dict, S: dict, C: dict, text_width: float) -> list
     tbl     = section.get("table")
     note    = section.get("note", "")
 
-    header_elems = make_section_header(heading, S, C)
+    header_elems = make_section_header(heading, S, C, toc)
 
     # Collect everything that follows the heading
     body_elems = []
@@ -964,22 +975,42 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
     )
 
     # ── Build story ──────────────────────────────────────────────────────
+    show_toc = content.get("show_toc", False)
+    show_cover = content.get("show_cover", True)
     story = []
 
-    # Cover page (always present)
-    story += make_cover(
-        content.get("title", "Untitled"),
-        content.get("subtitle", ""),
-        meta,
-        S, C, text_width,
-    )
+    # Cover page
+    if show_cover:
+        story += make_cover(
+            content.get("title", "Untitled"),
+            content.get("subtitle", ""),
+            meta,
+            S, C, text_width,
+        )
+
+    # Table of Contents
+    if show_toc:
+        toc = TableOfContents()
+        toc.levelStyles = [
+            ParagraphStyle(
+                "toc_level_1",
+                fontName="Helvetica",
+                fontSize=10,
+                leading=16,
+                textColor=C["text"],
+                leftIndent=0,
+            ),
+        ]
+        story.append(toc)
+        story.append(Spacer(1, 12))
 
     # Sections
     for section in content.get("sections", []):
-        story += assemble_section(section, S, C, text_width)
+        story += assemble_section(section, S, C, text_width, show_toc)
 
     # ── Render ───────────────────────────────────────────────────────────
-    doc.build(story, onFirstPage=chrome, onLaterPages=chrome)
+    # Use multiBuild so TableOfContents can collect entries on pass one
+    doc.multiBuild(story, onFirstPage=chrome, onLaterPages=chrome)
 
     return str(Path(out).resolve())
 
