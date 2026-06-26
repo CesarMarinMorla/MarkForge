@@ -322,6 +322,7 @@ from reportlab.platypus import (
     KeepTogether,
     PageBreak,
     Paragraph,
+    Preformatted,
     SimpleDocTemplate,
     Spacer,
     Table,
@@ -824,16 +825,10 @@ def make_code(code_text: str, language: str, C: dict, text_width: float) -> list
     """
     Code block with monospace font, light gray background, and optional
     language label in the top-right corner.
+
+    Uses Preformatted flowable (not Paragraph) so whitespace, indentation,
+    and blank lines are preserved exactly as written.
     """
-    code_style = ParagraphStyle(
-        "code_block",
-        fontName="Courier",
-        fontSize=8,
-        leading=11,
-        textColor=C["text"],
-        backColor=C["light"],
-    )
-    inner = Paragraph(safe_xml(code_text), code_style)
     rows = []
     if language:
         lang_style = ParagraphStyle(
@@ -845,6 +840,16 @@ def make_code(code_text: str, language: str, C: dict, text_width: float) -> list
             alignment=TA_RIGHT,
         )
         rows.append([Paragraph(safe_xml(language), lang_style)])
+
+    code_style = ParagraphStyle(
+        "code_block",
+        fontName="Courier",
+        fontSize=8,
+        leading=11,
+        textColor=C["text"],
+        backColor=C["light"],
+    )
+    inner = Preformatted(code_text, code_style)
     rows.append([inner])
 
     box = Table(
