@@ -271,6 +271,9 @@ CONTENT SCHEMA (what the agent must produce as JSON)
                                Example for 4 cols: [5.0, 4.0, 4.0, 4.0]
       },
 
+      "page_break": boolean,   OPTIONAL. true = force a page break before this
+                               section. Default: false.
+
       "note": string           OPTIONAL. A smaller, muted italic note below
                                the section content. Good for source citations,
                                disclaimers, or "as of" dates.
@@ -1008,18 +1011,21 @@ def assemble_section(section: dict, S: dict, C: dict, text_width: float, toc: bo
     is never left alone at the bottom of a page (orphan heading).
     The rest of the section content flows freely.
     """
-    heading = section.get("heading", "")
-    body    = section.get("body", "")
-    bullets = section.get("bullets", [])
-    ordered = section.get("ordered_list", [])
-    hl      = section.get("highlight", "")
-    img     = section.get("image")
-    code    = section.get("code")
-    lang    = section.get("language", "")
-    tbl     = section.get("table")
-    note    = section.get("note", "")
+    heading    = section.get("heading", "")
+    body       = section.get("body", "")
+    bullets    = section.get("bullets", [])
+    ordered    = section.get("ordered_list", [])
+    hl         = section.get("highlight", "")
+    img        = section.get("image")
+    code       = section.get("code")
+    lang       = section.get("language", "")
+    tbl        = section.get("table")
+    note       = section.get("note", "")
+    pg_break   = section.get("page_break", False)
 
     header_elems = make_section_header(heading, S, C, toc)
+    if pg_break:
+        header_elems.insert(0, PageBreak())
 
     # Collect everything that follows the heading
     body_elems = []
