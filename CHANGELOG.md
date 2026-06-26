@@ -30,6 +30,11 @@ Header/footer configurable content.
 - **Schema validation**: `validate_content()` checks the full JSON schema at
   build time and raises ValueError with ALL errors found (types, required fields,
   hex colors, table structure). File paths are NOT validated.
+- **md2pdf.py**: Deterministic markdown-to-PDF converter. Parses Pandoc YAML
+  frontmatter, converts inline formatting, pipe tables, fenced code blocks,
+  bullet/ordered lists, and blockquotes to the engine's JSON schema. No AI
+  required. Usage: `python md2pdf.py doc.md [output.pdf]`.
+- **generate_pdf.py**: Simplified to a thin wrapper around md2pdf.convert().
 
 ## v1.0.0 (2026-06-25)
 
