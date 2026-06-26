@@ -27,6 +27,9 @@ Header/footer configurable content.
   header left/right, footer left/center/right, and show/hide flags. Placeholders
   `{page}`, `{date}`, `{title}`, `{version}` resolve at render time. Fully
   backward-compatible with existing `show_footer_date`.
+- **Schema validation**: `validate_content()` checks the full JSON schema at
+  build time and raises ValueError with ALL errors found (types, required fields,
+  hex colors, table structure). File paths are NOT validated.
 
 ## v1.0.0 (2026-06-25)
 

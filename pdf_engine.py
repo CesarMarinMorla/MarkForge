@@ -218,7 +218,8 @@ CONTENT SCHEMA (what the agent must produce as JSON)
       "center": string,          Footer center text (default: "— {page} —").
                                  Use {page} placeholder for page number.
       "right":  string,          Footer right-aligned text (default: date if
-                                 show_footer_date is true, else "").
+                                  show_footer_date is true, else "").
+                                  Supports {date} placeholder for auto date.
     }
   },
 
@@ -326,11 +327,17 @@ CONTENT SCHEMA (what the agent must produce as JSON)
                                section. Default: false.
 
       "note": string           OPTIONAL. A smaller, muted italic note below
-                               the section content. Good for source citations,
-                               disclaimers, or "as of" dates.
-    }
-  ]
-}
+                                the section content. Good for source citations,
+                                disclaimers, or "as of" dates.
+     }
+   ]
+ }
+
+VALIDATION: The engine validates the full JSON schema at build time and
+raises a descriptive ValueError listing ALL problems found, not just the
+first one. This includes type checks, required fields, hex color format,
+table structure (headers vs rows cell count mismatch), and section
+element types. File paths are NOT validated (they surface from ReportLab).
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 AGENT SYSTEM PROMPT (copy this into your agent's system instructions)
@@ -365,7 +372,10 @@ AGENT SYSTEM PROMPT (copy this into your agent's system instructions)
   12. Page size: "page_size" can be "A4" (default), "Letter", "Legal".
       "orientation": "portrait" (default) or "landscape".
   13. Optional flags: "show_toc" (bool), "show_cover" (bool, default true),
-      "show_footer_date" (bool, default true).
+       "show_footer_date" (bool, default true).
+  14. Header/footer content: use "header_footer" block to customize header
+       left/right text and footer left/center/right text. Supports {page},
+       {date}, {title}, {version} placeholders. See schema above.
 
 
   ─────────────────────────────────────────────────────────────────────────
@@ -459,6 +469,15 @@ KNOWN PITFALLS
   ✗ "meta" keys with "date"/"fecha"/"datum" prevent auto-add of today's
     date. Other date-like keys are not detected — the engine only checks
     these three lowercased names.
+  ✗ header_footer.footer.right takes priority over show_footer_date.
+    If both are set, footer.right wins and show_footer_date is ignored.
+  ✗ header_footer.header/show=false still consumes header bar space on
+    every page (topMargin remains at 2.2 cm). The bar area is simply
+    left blank. To reclaim the space, the user would need to patch
+    topMargin manually.
+  ✗ validate_content() checks types and required fields but does NOT
+    verify file paths exist (fonts, images). Those errors surface from
+    ReportLab at render time with their own messages.
 """
 
 import json
@@ -489,6 +508,260 @@ from reportlab.platypus import (
     TableStyle,
 )
 from reportlab.platypus.tableofcontents import TableOfContents
+
+# ─────────────────────────────────────────────────────────────────────────────
+# SCHEMA VALIDATION
+# Returns a list of error messages. Empty list = valid.
+# Called by build_pdf() before any rendering.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def validate_content(content: dict) -> list[str]:
+    """
+    Validate the content dict against the documented schema.
+    Returns a list of human-readable error messages (empty = valid).
+
+    Checks:
+      - Required top-level fields (title, sections)
+      - Type correctness for every field
+      - Section element structure
+      - Hex color format in theme
+      - Image path presence
+      - Table structure (headers, rows, col_widths)
+    """
+    errors = []
+
+    if not isinstance(content, dict):
+        return ["Content must be a JSON object (dict)"]
+
+    # ── Required fields ────────────────────────────────────────────────
+    if "title" not in content:
+        errors.append('Missing required field: "title"')
+    elif not isinstance(content["title"], str) or not content["title"].strip():
+        errors.append('"title" must be a non-empty string')
+
+    if "sections" not in content:
+        errors.append('Missing required field: "sections"')
+    elif not isinstance(content["sections"], list):
+        errors.append('"sections" must be an array')
+    elif len(content["sections"]) == 0:
+        errors.append('"sections" must contain at least one section')
+
+    # ── Optional top-level fields ──────────────────────────────────────
+    str_fields = {"subtitle", "output", "watermark"}
+    for field in str_fields:
+        val = content.get(field)
+        if val is not None and not isinstance(val, str):
+            errors.append(f'"{field}" must be a string (got {type(val).__name__})')
+
+    bool_fields = {"show_toc", "show_cover", "show_footer_date"}
+    for field in bool_fields:
+        val = content.get(field)
+        if val is not None and not isinstance(val, bool):
+            errors.append(f'"{field}" must be a boolean (got {type(val).__name__})')
+
+    # page_size
+    ps = content.get("page_size")
+    if ps is not None:
+        if not isinstance(ps, str) or ps not in ("A4", "Letter", "Legal"):
+            errors.append('"page_size" must be "A4", "Letter", or "Legal"')
+
+    # orientation
+    orient = content.get("orientation")
+    if orient is not None:
+        if not isinstance(orient, str) or orient not in ("portrait", "landscape"):
+            errors.append('"orientation" must be "portrait" or "landscape"')
+
+    # ── Theme validation ───────────────────────────────────────────────
+    theme = content.get("theme")
+    if theme is not None:
+        if not isinstance(theme, dict):
+            errors.append('"theme" must be an object')
+        else:
+            for key in ("primary", "accent", "light", "text", "muted"):
+                val = theme.get(key)
+                if val is not None:
+                    if not isinstance(val, str) or not (
+                        val.startswith("#") and len(val) == 7
+                    ):
+                        errors.append(
+                            f'"theme.{key}" must be a hex color like "#RRGGBB"'
+                        )
+
+    # ── Meta ───────────────────────────────────────────────────────────
+    meta = content.get("meta")
+    if meta is not None:
+        if not isinstance(meta, dict):
+            errors.append('"meta" must be an object')
+        else:
+            for k, v in meta.items():
+                if not isinstance(k, str):
+                    errors.append(f'"meta" key must be a string (got {type(k).__name__})')
+                if not isinstance(v, str):
+                    errors.append(f'"meta.{k}" must be a string')
+
+    # ── Fonts ──────────────────────────────────────────────────────────
+    fonts = content.get("fonts")
+    if fonts is not None:
+        if not isinstance(fonts, dict):
+            errors.append('"fonts" must be an object')
+        else:
+            for role in ("sans", "mono", "serif"):
+                cfg = fonts.get(role)
+                if cfg is not None:
+                    if not isinstance(cfg, dict):
+                        errors.append(f'"fonts.{role}" must be an object')
+                    else:
+                        for variant in ("regular", "bold", "italic", "bold_italic"):
+                            val = cfg.get(variant)
+                            if val is not None and not isinstance(val, str):
+                                errors.append(
+                                    f'"fonts.{role}.{variant}" must be a string path'
+                                )
+
+    # ── header_footer ──────────────────────────────────────────────────
+    hf = content.get("header_footer")
+    if hf is not None:
+        if not isinstance(hf, dict):
+            errors.append('"header_footer" must be an object')
+        else:
+            for zone in ("header", "footer"):
+                z = hf.get(zone)
+                if z is not None:
+                    if not isinstance(z, dict):
+                        errors.append(f'"header_footer.{zone}" must be an object')
+                    else:
+                        if "show" in z and not isinstance(z["show"], bool):
+                            errors.append(
+                                f'"header_footer.{zone}.show" must be a boolean'
+                            )
+                        for sf in ("left", "center", "right"):
+                            val = z.get(sf)
+                            if val is not None and not isinstance(val, str):
+                                errors.append(
+                                    f'"header_footer.{zone}.{sf}" must be a string'
+                                )
+
+    # ── Sections ──────────────────────────────────────────────────────
+    sections = content.get("sections")
+    if isinstance(sections, list):
+        for i, sec in enumerate(sections):
+            prefix = f"sections[{i}]"
+            if not isinstance(sec, dict):
+                errors.append(f"{prefix} must be an object")
+                continue
+
+            # heading is required per section
+            if "heading" not in sec:
+                errors.append(f'{prefix} is missing required field "heading"')
+            elif not isinstance(sec["heading"], str) or not sec["heading"].strip():
+                errors.append(f'{prefix}."heading" must be a non-empty string')
+
+            # Optional string fields
+            for sf in ("body", "highlight", "code", "language", "note"):
+                val = sec.get(sf)
+                if val is not None and not isinstance(val, str):
+                    errors.append(f'{prefix}."{sf}" must be a string')
+
+            # Optional boolean
+            if "page_break" in sec and not isinstance(sec["page_break"], bool):
+                errors.append(f'{prefix}."page_break" must be a boolean')
+
+            # bullets / ordered_list
+            for lf in ("bullets", "ordered_list"):
+                val = sec.get(lf)
+                if val is not None:
+                    if not isinstance(val, list):
+                        errors.append(f'{prefix}."{lf}" must be an array')
+                    else:
+                        for j, item in enumerate(val):
+                            if not isinstance(item, str):
+                                errors.append(
+                                    f'{prefix}."{lf}"[{j}] must be a string'
+                                )
+
+            # image
+            img = sec.get("image")
+            if img is not None:
+                if not isinstance(img, dict):
+                    errors.append(f'{prefix}."image" must be an object')
+                else:
+                    if "path" not in img:
+                        errors.append(f'{prefix}."image" is missing "path"')
+                    elif not isinstance(img["path"], str):
+                        errors.append(f'{prefix}."image.path" must be a string')
+                    for nf in ("width", "height"):
+                        val = img.get(nf)
+                        if val is not None and not isinstance(val, (int, float)):
+                            errors.append(
+                                f'{prefix}."image.{nf}" must be a number'
+                            )
+                    if "caption" in img and not isinstance(img["caption"], str):
+                        errors.append(f'{prefix}."image.caption" must be a string')
+
+            # table
+            tbl = sec.get("table")
+            if tbl is not None:
+                if not isinstance(tbl, dict):
+                    errors.append(f'{prefix}."table" must be an object')
+                else:
+                    headers = tbl.get("headers")
+                    if headers is not None:
+                        if not isinstance(headers, list):
+                            errors.append(f'{prefix}."table.headers" must be an array')
+                        else:
+                            for j, h in enumerate(headers):
+                                if not isinstance(h, str):
+                                    errors.append(
+                                        f'{prefix}."table.headers"[{j}] must be a string'
+                                    )
+
+                    rows = tbl.get("rows")
+                    if rows is not None:
+                        if not isinstance(rows, list):
+                            errors.append(f'{prefix}."table.rows" must be an array')
+                        else:
+                            for j, row in enumerate(rows):
+                                if not isinstance(row, list):
+                                    errors.append(
+                                        f'{prefix}."table.rows"[{j}] must be an array'
+                                    )
+                                else:
+                                    for k, cell in enumerate(row):
+                                        if not isinstance(cell, str):
+                                            errors.append(
+                                                f'{prefix}."table.rows"[{j}][{k}]'
+                                                " must be a string"
+                                            )
+
+                    cw = tbl.get("col_widths")
+                    if cw is not None:
+                        if not isinstance(cw, list):
+                            errors.append(
+                                f'{prefix}."table.col_widths" must be an array'
+                            )
+                        else:
+                            for j, w in enumerate(cw):
+                                if not isinstance(w, (int, float)):
+                                    errors.append(
+                                        f'{prefix}."table.col_widths"[{j}]'
+                                        " must be a number"
+                                    )
+
+                    # Cross-check: headers count vs row cell count
+                    if (
+                        isinstance(headers, list)
+                        and isinstance(rows, list)
+                        and len(rows) > 0
+                    ):
+                        nh = len(headers)
+                        for j, row in enumerate(rows):
+                            if isinstance(row, list) and len(row) != nh:
+                                errors.append(
+                                    f'{prefix}."table.rows"[{j}] has {len(row)} cells'
+                                    f" but headers has {nh}"
+                                )
+
+    return errors
 
 # ─────────────────────────────────────────────────────────────────────────────
 # PAGE SIZE RESOLUTION
@@ -1273,6 +1546,7 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
     Build a complete professional PDF from a content dict.
 
     Flow:
+      0. validate_content(content) → raises ValueError with all errors
       1. content.get("theme")  → build_theme()    → C (color dict)
       2. content.get("fonts")  → register_user_fonts() → F (font name dict)
       3. C + F                 → build_styles()     → S (ParagraphStyle dict)
@@ -1289,6 +1563,13 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
     Returns:
         The absolute path to the generated PDF file.
     """
+
+    # ── Validate schema ──────────────────────────────────────────────────
+    errs = validate_content(content)
+    if errs:
+        raise ValueError(
+            "Content validation failed:\n  - " + "\n  - ".join(errs)
+        )
 
     # ── Resolve output path ──────────────────────────────────────────────
     out = output_path or content.get("output", "output.pdf")
