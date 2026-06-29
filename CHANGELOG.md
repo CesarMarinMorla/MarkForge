@@ -1,5 +1,28 @@
 # Changelog
 
+## v1.2.0 (2026-06-29)
+
+Refactor a package modular y Fase 1 de pulido.
+
+- **Package modular**: `pdf_engine/` reemplaza al monolito de 1700 líneas.
+  8 submódulos con dependencias explícitas. Backward compatible.
+- **detect_system_mono()**: en macOS detecta y registra Menlo automáticamente
+  como monospace default. Cubre Unicode (box-drawing, flechas, acentos latinos).
+  Courier ya no es el default; si Menlo no está disponible, cae a Courier.
+- **topMargin dinámico**: se reduce a 1.0 cm cuando `header.show=false`.
+- **Font custom en PageChrome**: header, footer y watermark usan los fonts
+  registrados en vez de Helvetica hardcoded.
+- **image_caption style**: agregado a `build_styles()` con el font itálico
+  registrado en vez de `Helvetica-Oblique` hardcoded.
+- **Múltiples code blocks/tables en md2pdf**: code blocks se unen con `\n\n`,
+  tablas extra se renderizan como body text en vez de descartarse.
+- **Validación de rutas**: `validate_content()` chequea que existan archivos
+  de fonts e imágenes antes de renderizar.
+- **col_widths automática**: proporcional al largo del header en vez de igual.
+- **Defensa None en tablas**: helper `_cell_text()` normaliza cualquier celda
+  no-string a `""` para evitar crashes.
+- **__main__.py**: `python -m pdf_engine` ahora funciona como entry point.
+
 ## v1.1.0 (2026-06-25)
 
 Custom fonts via JSON schema. Atkinson Hyperlegible + JetBrains Mono demo.

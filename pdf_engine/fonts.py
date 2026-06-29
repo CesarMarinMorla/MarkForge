@@ -3,6 +3,9 @@ Font registration for the Agent PDF Engine.
 Handles TTF registration, system font detection, and fallback chains.
 """
 
+import sys
+from pathlib import Path
+
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
@@ -13,15 +16,59 @@ DEFAULT_FONTS = {
     "serif":      ("Times-Roman",      "Times-Bold",      "Times-Italic",       "Times-BoldItalic"),
 }
 
+_SYSTEM_MONO_CANDIDATES: list[tuple[str, str, int, int, int, int]] = [
+    ("Menlo", "/System/Library/Fonts/Menlo.ttc", 0, 1, 2, 3),
+]
+
+
+def detect_system_mono() -> tuple | None:
+    """
+    Try to register a system monospace font with full Unicode coverage.
+    On macOS, attempts Menlo (pre-installed since OS X Lion).
+
+    Returns a (regular, bold, italic, bold_italic) font name tuple
+    if successful, or None to fall back to Courier.
+    """
+    if sys.platform != "darwin":
+        return None
+
+    for name, path, reg_idx, bold_idx, italic_idx, bi_idx in _SYSTEM_MONO_CANDIDATES:
+        if not Path(path).exists():
+            continue
+        try:
+            base = f"System{name}"
+            reg = base
+            pdfmetrics.registerFont(TTFont(reg, path, subfontIndex=reg_idx))
+            bold = f"{base}-Bold"
+            pdfmetrics.registerFont(TTFont(bold, path, subfontIndex=bold_idx))
+            italic = f"{base}-Italic"
+            pdfmetrics.registerFont(TTFont(italic, path, subfontIndex=italic_idx))
+            bi = f"{base}-BoldItalic"
+            pdfmetrics.registerFont(TTFont(bi, path, subfontIndex=bi_idx))
+            return (reg, bold, italic, bi)
+        except Exception:
+            continue
+
+    return None
+
 
 def register_user_fonts(fonts_config: dict | None) -> dict:
     """
     Register TTF fonts from the content's "fonts" block and return a
     dict mapping each role -> (regular, bold, italic, bold_italic) font names.
 
-    If fonts_config is None or empty, returns DEFAULT_FONTS unchanged.
+    If no mono font is configured, attempts detect_system_mono() to find a
+    system monospace with Unicode support (e.g. Menlo on macOS).
+    Falls back to Courier when nothing else is available.
     """
     resolved = dict(DEFAULT_FONTS)
+
+    # If no mono configured, try system detection
+    mono_configured = fonts_config and fonts_config.get("mono")
+    if not mono_configured:
+        system_mono = detect_system_mono()
+        if system_mono:
+            resolved["mono"] = system_mono
 
     if not fonts_config:
         return resolved
