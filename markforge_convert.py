@@ -36,6 +36,10 @@ def inline_to_xml(text: str, accent: str = "#E94560") -> str:
         text,
     )
 
+    # Bold + italic: ***text*** or ___text___ (must precede separate bold/italic)
+    text = re.sub(r'\*\*\*(.+?)\*\*\*', r'<b><i>\1</i></b>', text)
+    text = re.sub(r'___(.+?)___', r'<b><i>\1</i></b>', text)
+
     # Bold: **text** or __text__
     text = re.sub(r'\*\*(.+?)\*\*', r'<b>\1</b>', text)
     text = re.sub(r'__(.+?)__', r'<b>\1</b>', text)
