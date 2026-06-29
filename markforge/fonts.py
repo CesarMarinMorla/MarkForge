@@ -1,5 +1,5 @@
 """
-Font registration for the Agent PDF Engine.
+Font registration for MarkForge.
 Handles TTF registration, system font detection, and fallback chains.
 """
 

@@ -1,5 +1,5 @@
 """
-Core entry point for the Agent PDF Engine.
+Core entry point for MarkForge.
 """
 
 import json
@@ -17,12 +17,12 @@ from reportlab.platypus import (
 )
 from reportlab.platypus.tableofcontents import TableOfContents
 
-from pdf_engine.chrome import PageChrome
-from pdf_engine.components import assemble_section, make_cover
-from pdf_engine.fonts import register_user_fonts
-from pdf_engine.schema import validate_content
-from pdf_engine.styles import build_styles
-from pdf_engine.theme import build_theme
+from markforge.chrome import PageChrome
+from markforge.components import assemble_section, make_cover
+from markforge.fonts import register_user_fonts
+from markforge.schema import validate_content
+from markforge.styles import build_styles
+from markforge.theme import build_theme
 
 
 PAGE_SIZES = {
@@ -151,8 +151,8 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
 def main():
     """CLI entry point."""
     if len(sys.argv) < 2:
-        print("Usage: python -m pdf_engine '<json_string>'")
-        print("       python -m pdf_engine path/to/content.json")
+        print("Usage: python -m markforge '<json_string>'")
+        print("       python -m markforge path/to/content.json")
         sys.exit(1)
 
     arg = sys.argv[1]

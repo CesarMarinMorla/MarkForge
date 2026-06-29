@@ -1,10 +1,10 @@
 """
 Deterministic Markdown → PDF converter.
 Reads a markdown file (Pandoc-style YAML frontmatter), converts it to the
-content dict expected by pdf_engine.build_pdf(), and renders the PDF.
+content dict expected by markforge.build_pdf(), and renders the PDF.
 
 Usage:
-    python md2pdf.py informe.md [output.pdf]
+    python markforge_convert.py informe.md [output.pdf]
 
 No AI, no agent — pure deterministic parsing.
 """
@@ -13,7 +13,7 @@ import re
 import sys
 from pathlib import Path
 
-from pdf_engine import build_pdf
+from markforge import build_pdf
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -323,7 +323,7 @@ def build_sections(body_lines: list[str], accent: str) -> list[dict]:
 
 def convert(md_path: str, output_path: str | None = None) -> str:
     """
-    Convert a markdown file to PDF using the agent PDF engine.
+    Convert a markdown file to PDF using MarkForge.
 
     Returns the output PDF path.
     """
@@ -392,7 +392,7 @@ def convert(md_path: str, output_path: str | None = None) -> str:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python md2pdf.py <file.md> [output.pdf]")
+        print("Usage: python markforge_convert.py <file.md> [output.pdf]")
         sys.exit(1)
 
     md_path = sys.argv[1]

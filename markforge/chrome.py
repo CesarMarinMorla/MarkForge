@@ -1,5 +1,5 @@
 """
-Per-page chrome (header bar, footer, watermark) for the Agent PDF Engine.
+Per-page chrome (header bar, footer, watermark) for MarkForge.
 """
 
 from datetime import datetime
@@ -8,7 +8,7 @@ from reportlab.lib import colors
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas as pdfgen_canvas
 
-from pdf_engine.fonts import DEFAULT_FONTS
+from markforge.fonts import DEFAULT_FONTS
 
 
 class PageChrome:

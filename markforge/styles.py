@@ -1,12 +1,12 @@
 """
-Style sheet builder for the Agent PDF Engine.
+Style sheet builder for MarkForge.
 """
 
 from reportlab.lib import colors
 from reportlab.lib.enums import TA_CENTER, TA_JUSTIFY
 from reportlab.lib.styles import ParagraphStyle
 
-from pdf_engine.fonts import DEFAULT_FONTS
+from markforge.fonts import DEFAULT_FONTS
 
 
 def build_styles(C: dict, F: dict | None = None) -> dict:

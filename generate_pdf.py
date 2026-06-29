@@ -7,7 +7,7 @@ Usage:
     python generate_pdf.py [input.md] [output.pdf]
 """
 import sys
-from md2pdf import convert
+from markforge_convert import convert
 
 if __name__ == "__main__":
     md_path = sys.argv[1] if len(sys.argv) > 1 else "informe-inventario-itu.md"

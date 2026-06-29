@@ -1,5 +1,5 @@
 """
-Component builders for the Agent PDF Engine.
+Component builders for MarkForge.
 Each function returns a list of Flowables to be appended into the story.
 """
 

@@ -1,5 +1,5 @@
 """
-Theme management for the Agent PDF Engine.
+Theme management for MarkForge.
 """
 
 from reportlab.lib import colors

@@ -1,5 +1,5 @@
 """
-Content schema validation for the Agent PDF Engine.
+Content schema validation for MarkForge.
 """
 
 from pathlib import Path

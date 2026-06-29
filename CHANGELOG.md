@@ -4,7 +4,7 @@
 
 Refactor a package modular y Fase 1 de pulido.
 
-- **Package modular**: `pdf_engine/` reemplaza al monolito de 1700 líneas.
+- **Package modular**: `markforge/` reemplaza al monolito de 1700 líneas.
   8 submódulos con dependencias explícitas. Backward compatible.
 - **detect_system_mono()**: en macOS detecta y registra Menlo automáticamente
   como monospace default. Cubre Unicode (box-drawing, flechas, acentos latinos).
@@ -14,14 +14,14 @@ Refactor a package modular y Fase 1 de pulido.
   registrados en vez de Helvetica hardcoded.
 - **image_caption style**: agregado a `build_styles()` con el font itálico
   registrado en vez de `Helvetica-Oblique` hardcoded.
-- **Múltiples code blocks/tables en md2pdf**: code blocks se unen con `\n\n`,
+- **Múltiples code blocks/tables en markforge_convert**: code blocks se unen con `\n\n`,
   tablas extra se renderizan como body text en vez de descartarse.
 - **Validación de rutas**: `validate_content()` chequea que existan archivos
   de fonts e imágenes antes de renderizar.
 - **col_widths automática**: proporcional al largo del header en vez de igual.
 - **Defensa None en tablas**: helper `_cell_text()` normaliza cualquier celda
   no-string a `""` para evitar crashes.
-- **__main__.py**: `python -m pdf_engine` ahora funciona como entry point.
+- **__main__.py**: `python -m markforge` ahora funciona como entry point.
 
 ## v1.1.0 (2026-06-25)
 
@@ -53,15 +53,15 @@ Header/footer configurable content.
 - **Schema validation**: `validate_content()` checks the full JSON schema at
   build time and raises ValueError with ALL errors found (types, required fields,
   hex colors, table structure). File paths are NOT validated.
-- **md2pdf.py**: Deterministic markdown-to-PDF converter. Parses Pandoc YAML
+- **markforge_convert.py**: Deterministic markdown-to-PDF converter. Parses Pandoc YAML
   frontmatter, converts inline formatting, pipe tables, fenced code blocks,
   bullet/ordered lists, and blockquotes to the engine's JSON schema. No AI
-  required. Usage: `python md2pdf.py doc.md [output.pdf]`.
-- **generate_pdf.py**: Simplified to a thin wrapper around md2pdf.convert().
+  required. Usage: `python markforge_convert.py doc.md [output.pdf]`.
+- **generate_pdf.py**: Simplified to a thin wrapper around markforge_convert.convert().
 
 ## v1.0.0 (2026-06-25)
 
-Primera versión estable del **Agent PDF Engine**. Motor determinista para generacion de PDF profesional a partir de JSON, usando ReportLab Platypus.
+Primera versión estable de **MarkForge** (entonces Agent PDF Engine). Motor determinista para generacion de PDF profesional a partir de JSON, usando ReportLab Platypus.
 
 ### Features
 
@@ -87,9 +87,9 @@ Primera versión estable del **Agent PDF Engine**. Motor determinista para gener
 
 ```bash
 pip install reportlab
-python pdf_engine.py '{"title":"Doc","sections":[{"heading":"S1","body":"..."}]}'
-python pdf_engine.py path/to/content.json
-python pdf_engine.py path/to/content.json output.pdf
+python -m markforge '{"title":"Doc","sections":[{"heading":"S1","body":"..."}]}'
+python -m markforge path/to/content.json
+python -m markforge path/to/content.json output.pdf
 ```
 
 ### Arquitectura
