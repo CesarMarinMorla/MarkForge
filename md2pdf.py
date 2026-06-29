@@ -297,15 +297,16 @@ def build_sections(body_lines: list[str], accent: str) -> list[dict]:
         if ordered:
             sec["ordered_list"] = ordered
         if tables:
-            # If there's one table, use it; if multiple, put first in table
-            # and remaining body in note merge
             sec["table"] = tables[0]
             if len(tables) > 1:
-                body_parts.append(
-                    "(See additional table below)"  # fallback
+                extra = "".join(
+                    f"<br/><br/>{' | '.join(t['headers'])}<br/>"
+                    + "<br/>".join(" | ".join(row) for row in t["rows"])
+                    for t in tables[1:]
                 )
+                body_parts.append(extra)
         if codes:
-            sec["code"] = codes[0]
+            sec["code"] = "\n\n".join(codes)
         if highlight:
             sec["highlight"] = highlight
         if note:
