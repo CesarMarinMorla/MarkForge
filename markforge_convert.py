@@ -4,7 +4,7 @@ Reads a markdown file (Pandoc-style YAML frontmatter), converts it to the
 content dict expected by markforge.build_pdf(), and renders the PDF.
 
 Usage:
-    python markforge_convert.py informe.md [output.pdf]
+    python markforge_convert.py file.md [output.pdf]
 
 No AI, no agent — pure deterministic parsing.
 """
@@ -180,9 +180,11 @@ def build_sections(body_lines: list[str], accent: str) -> list[dict]:
     """
     Convert parsed markdown body into a list of section dicts.
 
-    Splits on "## " headings. Within each section, classifies blocks as:
-      body text, bullets, ordered_list, table, code, highlight (blockquote).
-    Sub-headings ("###") are treated as separate sections.
+    Splits on "## " headings. Produces an ordered ``blocks`` list within
+    each section preserving the original line order. Also fills backward-
+    compatible fields (``body``, ``bullets``, etc.) derived from blocks.
+    Sub-headings (``###`` through ``######``) become block type ``sub_heading``
+    with a numeric ``level``.
     """
     # Find all heading positions
     heading_positions = []
@@ -203,16 +205,8 @@ def build_sections(body_lines: list[str], accent: str) -> list[dict]:
         # Collect section body lines
         sec_lines = body_lines[pos + 1:end]
 
-        sec = {"heading": heading}
-
-        # Process blocks
-        body_parts = []
-        bullets = []
-        ordered = []
-        tables = []
-        codes = []
-        highlight = None
-        note = None
+        # Ordered list of content blocks (preserves markdown order)
+        blocks = []
 
         i = 0
         while i < len(sec_lines):
@@ -228,30 +222,41 @@ def build_sections(body_lines: list[str], accent: str) -> list[dict]:
                 i += 1
                 continue
 
-            # Blockquote → highlight (only first)
-            if line.startswith(">") and highlight is None:
+            # Blockquote → highlight
+            if line.startswith(">"):
                 hl = re.sub(r'^>\s?', '', line)
-                # Collect continuation lines
                 j = i + 1
                 while j < len(sec_lines) and sec_lines[j].strip().startswith(">"):
                     hl += " " + re.sub(r'^>\s?', '', sec_lines[j].strip())
                     j += 1
-                highlight = inline_to_xml(hl, accent)
+                blocks.append({"type": "highlight",
+                               "content": inline_to_xml(hl, accent)})
                 i = j
                 continue
 
             # Code block (fenced)
             code, next_i = parse_code_block(sec_lines, i)
             if code is not None:
-                codes.append(code)
+                blocks.append({"type": "code", "content": code})
                 i = next_i
                 continue
 
             # Table
             table, next_i = parse_pipe_table(sec_lines, i, accent)
             if table is not None:
-                tables.append(table)
+                blocks.append({"type": "table", **table})
                 i = next_i
+                continue
+
+            # Sub-heading (###, ####, #####, ######)
+            sh = re.match(r'^(#{3,6})\s+', line)
+            if sh:
+                level = len(sh.group(1))
+                sub = re.sub(r'^#{3,6}\s+', '', line)
+                blocks.append({"type": "sub_heading",
+                               "level": level,
+                               "content": inline_to_xml(sub, accent)})
+                i += 1
                 continue
 
             # Bullet list: starts with "- " or "* "
@@ -262,7 +267,7 @@ def build_sections(body_lines: list[str], accent: str) -> list[dict]:
                     item = inline_to_xml(item, accent)
                     bullet_items.append(item)
                     i += 1
-                bullets.extend(bullet_items)
+                blocks.append({"type": "bullet", "items": bullet_items})
                 continue
 
             # Ordered list: starts with "1. " or "1) "
@@ -273,7 +278,7 @@ def build_sections(body_lines: list[str], accent: str) -> list[dict]:
                     item = inline_to_xml(item, accent)
                     ordered_items.append(item)
                     i += 1
-                ordered.extend(ordered_items)
+                blocks.append({"type": "ordered", "items": ordered_items})
                 continue
 
             # Regular paragraph
@@ -281,19 +286,45 @@ def build_sections(body_lines: list[str], accent: str) -> list[dict]:
             j = i + 1
             while j < len(sec_lines) and sec_lines[j].strip():
                 nxt = sec_lines[j].strip()
-                # Stop at table, code fence, list, heading, blockquote
                 if (nxt.startswith("|") or nxt.startswith("```")
+                        or nxt.startswith(">")
+                        or re.match(r'^#{3,6}\s+', nxt)
                         or re.match(r'^[-*]\s+', nxt)
-                        or re.match(r'^\d+[.)]\s+', nxt)
-                        or nxt.startswith(">")):
+                        or re.match(r'^\d+[.)]\s+', nxt)):
                     break
                 para += " " + nxt
                 j += 1
 
-            body_parts.append(inline_to_xml(para, accent))
+            blocks.append({"type": "paragraph",
+                           "content": inline_to_xml(para, accent)})
             i = j
 
-        # Assign content
+        # Build section dict with blocks + backward-compat fields
+        sec = {"heading": heading, "blocks": blocks}
+
+        body_parts = []
+        bullets = []
+        ordered = []
+        tables = []
+        codes = []
+        highlight = None
+        note = None
+
+        for b in blocks:
+            t = b["type"]
+            if t == "paragraph":
+                body_parts.append(b["content"])
+            elif t == "bullet":
+                bullets.extend(b["items"])
+            elif t == "ordered":
+                ordered.extend(b["items"])
+            elif t == "table":
+                tables.append(b)
+            elif t == "code":
+                codes.append(b["content"])
+            elif t == "highlight":
+                highlight = b["content"]
+
         if body_parts:
             sec["body"] = "<br/><br/>".join(body_parts)
         if bullets:
@@ -313,8 +344,6 @@ def build_sections(body_lines: list[str], accent: str) -> list[dict]:
             sec["code"] = "\n\n".join(codes)
         if highlight:
             sec["highlight"] = highlight
-        if note:
-            sec["note"] = note
 
         sections.append(sec)
 

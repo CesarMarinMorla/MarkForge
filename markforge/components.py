@@ -235,52 +235,107 @@ def make_code(code_text: str, language: str, C: dict, text_width: float,
     return [box, Spacer(1, 8)]
 
 
+SUB_HEADING_STYLES = {
+    3: "sub_heading",
+    4: "sub_sub_heading",
+    5: "sub_sub_sub_heading",
+    6: "sub_sub_sub_sub_heading",
+}
+
+
+def make_sub_heading(level: int, text: str, S: dict) -> list:
+    """Sub-heading paragraph with style matching heading level."""
+    style_key = SUB_HEADING_STYLES.get(level, "sub_sub_sub_sub_heading")
+    return [Paragraph(safe_xml(text), S[style_key])]
+
+
 def make_note(text: str, S: dict) -> list:
     """Small italic note / source citation."""
     return [Paragraph(safe_xml(text), S["note"]), Spacer(1, 4)]
+
+
+def _render_blocks(blocks: list[dict], S: dict, C: dict, text_width: float,
+                   mono_font: str) -> list:
+    """Render an ordered list of content blocks to flowables."""
+    elems = []
+    for block in blocks:
+        t = block.get("type")
+        if t == "paragraph":
+            elems += make_body(block.get("content", ""), S)
+        elif t == "sub_heading":
+            elems += make_sub_heading(block.get("level", 3),
+                                      block.get("content", ""), S)
+        elif t == "bullet":
+            elems += make_bullets(block.get("items", []), S)
+        elif t == "ordered":
+            elems += make_ordered_list(block.get("items", []), S)
+        elif t == "highlight":
+            elems += make_highlight(block.get("content", ""), S, C, text_width)
+        elif t == "code":
+            elems += make_code(block.get("content", ""),
+                               block.get("language", ""),
+                               C, text_width, mono_font)
+        elif t == "table":
+            elems += make_table(
+                block.get("headers", []),
+                block.get("rows", []),
+                block.get("col_widths"),
+                S, C, text_width,
+            )
+        elif t == "image":
+            elems += make_image(block, S, text_width)
+        elif t == "note":
+            elems += make_note(block.get("content", ""), S)
+    return elems
 
 
 def assemble_section(section: dict, S: dict, C: dict, text_width: float,
                      toc: bool = False, mono_font: str = "Courier") -> list:
     """Build all flowables for one section from the content JSON."""
     heading    = section.get("heading", "")
-    body       = section.get("body", "")
-    bullets    = section.get("bullets", [])
-    ordered    = section.get("ordered_list", [])
-    hl         = section.get("highlight", "")
-    img        = section.get("image")
-    code       = section.get("code")
-    lang       = section.get("language", "")
-    tbl        = section.get("table")
-    note       = section.get("note", "")
     pg_break   = section.get("page_break", False)
+    blocks     = section.get("blocks")
 
     header_elems = make_section_header(heading, S, C, toc)
     if pg_break:
         header_elems.insert(0, PageBreak())
 
-    body_elems = []
-    if body:
-        body_elems += make_body(body, S)
-    if bullets:
-        body_elems += make_bullets(bullets, S)
-    if ordered:
-        body_elems += make_ordered_list(ordered, S)
-    if hl:
-        body_elems += make_highlight(hl, S, C, text_width)
-    if img:
-        body_elems += make_image(img, S, text_width)
-    if code:
-        body_elems += make_code(code, lang, C, text_width, mono_font)
-    if tbl:
-        body_elems += make_table(
-            tbl.get("headers", []),
-            tbl.get("rows", []),
-            tbl.get("col_widths"),
-            S, C, text_width,
-        )
-    if note:
-        body_elems += make_note(note, S)
+    if blocks:
+        body_elems = _render_blocks(blocks, S, C, text_width, mono_font)
+    else:
+        # Backward-compat: old field-based section format
+        body       = section.get("body", "")
+        bullets    = section.get("bullets", [])
+        ordered    = section.get("ordered_list", [])
+        hl         = section.get("highlight", "")
+        img        = section.get("image")
+        code       = section.get("code")
+        lang       = section.get("language", "")
+        tbl        = section.get("table")
+        note       = section.get("note", "")
+
+        body_elems = []
+        if body:
+            body_elems += make_body(body, S)
+        if bullets:
+            body_elems += make_bullets(bullets, S)
+        if ordered:
+            body_elems += make_ordered_list(ordered, S)
+        if hl:
+            body_elems += make_highlight(hl, S, C, text_width)
+        if img:
+            body_elems += make_image(img, S, text_width)
+        if code:
+            body_elems += make_code(code, lang, C, text_width, mono_font)
+        if tbl:
+            body_elems += make_table(
+                tbl.get("headers", []),
+                tbl.get("rows", []),
+                tbl.get("col_widths"),
+                S, C, text_width,
+            )
+        if note:
+            body_elems += make_note(note, S)
 
     if not body_elems:
         return header_elems

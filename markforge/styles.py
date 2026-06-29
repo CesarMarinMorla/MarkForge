@@ -51,6 +51,43 @@ def build_styles(C: dict, F: dict | None = None) -> dict:
             spaceAfter  = 4,
         ),
 
+        "sub_heading": ParagraphStyle(
+            "sub_heading",
+            fontName    = sans_bold,
+            fontSize    = 11,
+            leading     = 14,
+            textColor   = C["primary"],
+            spaceBefore = 10,
+            spaceAfter  = 4,
+        ),
+        "sub_sub_heading": ParagraphStyle(
+            "sub_sub_heading",
+            fontName    = sans_bold,
+            fontSize    = 10.5,
+            leading     = 13.5,
+            textColor   = C["text"],
+            spaceBefore = 8,
+            spaceAfter  = 3,
+        ),
+        "sub_sub_sub_heading": ParagraphStyle(
+            "sub_sub_sub_heading",
+            fontName    = sans_bold,
+            fontSize    = 10,
+            leading     = 13,
+            textColor   = C["muted"],
+            spaceBefore = 6,
+            spaceAfter  = 2,
+        ),
+        "sub_sub_sub_sub_heading": ParagraphStyle(
+            "sub_sub_sub_sub_heading",
+            fontName    = sans_bold,
+            fontSize    = 9.5,
+            leading     = 12.5,
+            textColor   = C["muted"],
+            spaceBefore = 4,
+            spaceAfter  = 2,
+        ),
+
         "body": ParagraphStyle(
             "body",
             fontName  = sans_reg,
