@@ -1,42 +1,41 @@
-# Agent PDF Engine — Contexto para Continuar
+# MarkForge — Contexto para Continuar
 
 ## Estado Actual
 
 Proyecto maduro. Motor de PDF profesional desde JSON via ReportLab,
-conversor determinista markdown → PDF. Refactorizado a package modular.
-Sin LaTeX, sin Chrome, sin wkhtmltopdf.
+conversor determinista markdown → PDF. Sin LaTeX, sin Chrome, sin wkhtmltopdf.
 
 ## Pipeline
 
 ```
-.md  ─►  md2pdf.py  ─►  dict JSON  ─►  pdf_engine/ (package)  ─►  .pdf
-                (determinista)       validate_content()
-                                      build_theme() → C
-                                      register_user_fonts() → F
-                                      detect_system_mono()     ← macOS: Menlo
-                                      build_styles(C, F) → S
-                                      assemble_section()
-                                      doc.multiBuild()
+.md  ─►  markforge_convert.py  ─►  dict JSON  ─►  markforge/ (package)  ─►  .pdf
+                 (determinista)       validate_content()
+                                       build_theme() → C
+                                       register_user_fonts() → F
+                                       detect_system_mono()     ← macOS: Menlo
+                                       build_styles(C, F) → S
+                                       assemble_section()
+                                       doc.multiBuild()
 ```
 
 ## Archivos
 
 | Archivo | Rol |
 |---|---|
-| `pdf_engine/` | Package modular (8 módulos) |
-| `pdf_engine/__init__.py` | Re-exporta `build_pdf`, `main` |
-| `pdf_engine/core.py` | `build_pdf()`, CLI `main()`, `resolve_page_size()` |
-| `pdf_engine/schema.py` | `validate_content()` — schema completo |
-| `pdf_engine/theme.py` | `build_theme()`, `DEFAULT_THEME` |
-| `pdf_engine/fonts.py` | `register_user_fonts()`, `detect_system_mono()`, `DEFAULT_FONTS` |
-| `pdf_engine/chrome.py` | `PageChrome` — header/footer/watermark canvas |
-| `pdf_engine/styles.py` | `build_styles()` — ParagraphStyles con colores y fonts |
-| `pdf_engine/components.py` | `safe_xml()`, `make_*()`, `assemble_section()` |
-| `pdf_engine/__main__.py` | `python -m pdf_engine` entry point |
-| `md2pdf.py` | Conversor markdown determinista (~250 líneas) |
-| `generate_pdf.py` | Entry point demo, wrapper de md2pdf |
-| `informe-inventario-itu.md` | Documento de prueba (ITU informe técnico) |
-| `CHANGELOG.md` | Historial de cambios |
+| `markforge/` | Package modular (8 módulos) |
+| `markforge/__init__.py` | Re-exporta `build_pdf`, `main` |
+| `markforge/core.py` | `build_pdf()`, CLI `main()`, `resolve_page_size()` |
+| `markforge/schema.py` | `validate_content()` — schema completo |
+| `markforge/theme.py` | `build_theme()`, `DEFAULT_THEME` |
+| `markforge/fonts.py` | `register_user_fonts()`, `detect_system_mono()`, `DEFAULT_FONTS` |
+| `markforge/chrome.py` | `PageChrome` — header/footer/watermark canvas |
+| `markforge/styles.py` | `build_styles()` — ParagraphStyles con colores y fonts |
+| `markforge/components.py` | `safe_xml()`, `make_*()`, `assemble_section()` |
+| `markforge/__main__.py` | `python -m markforge` entry point |
+| `markforge_convert.py` | Conversor markdown determinista (~410 líneas) |
+| `generate_pdf.py` | Entry point demo, wrapper de markforge_convert |
+| `docs/CHANGELOG.md` | Historial de cambios |
+| `test/` | Suite de tests sintéticos (6 archivos) |
 
 ## Dependencia
 
@@ -44,7 +43,7 @@ Solo `reportlab` (pip install reportlab).
 
 ## Lo Implementado
 
-### Core Engine (pdf_engine/)
+### Core Engine (markforge/)
 
 - **Portada** con título, subtítulo, barra acento, tabla de metadatos
 - **TOC** opcional via `show_toc: true` (multiBuild two-pass)
@@ -65,19 +64,32 @@ Solo `reportlab` (pip install reportlab).
 - **Header/footer configurable**: `"header_footer"` block, placeholders `{page} {date} {title} {version}`
 - **header.show=false**: topMargin se reduce de 2.2 cm a 1.0 cm para recuperar espacio
 - **Schema validation**: `validate_content()` chequea todo el schema + rutas de archivo antes de renderizar
-- **CLI**: `python -m pdf_engine '<json>'` o `python pdf_engine/core.py file.json`
+- **CLI**: `python -m markforge '<json>'` o `python markforge/core.py file.json`
 
-### md2pdf.py
+### markforge_convert.py
 
 - Parsea frontmatter YAML (Pandoc-style) → title, subtitle, author, date, toc, theme colors
-- Inline markdown: `**bold**`, `*italic*`, `` `code` ``, `[links](url)` → XML ReportLab
+- Inline markdown: `**bold**`, `*italic*`, `***bold italic***`, `` `code` ``, `[links](url)` → XML ReportLab
 - Pipe tables → `table` schema con `col_widths` proporcionales
 - Fenced code blocks ``` → `code` field (múltiples se unen con `\n\n`)
 - Bullet lists (`- `) → `bullets` array
 - Ordered lists (`1. `) → `ordered_list` array
 - Blockquotes (`> `) → `highlight`
 - Horizontal rules (`---`) → ignoradas
-- Sub-headings (`###`) → incluidas como body text
+- Sub-headings (`###`-`######`) → bold en body text
+
+## Test Suite
+
+| Archivo | Cobertura |
+|---|---|
+| `test/basic.md` | Smoke test mínimo: cover, TOC, body text |
+| `test/formatting.md` | Inline: bold, italic, links, code, accents, edge cases |
+| `test/tables.md` | Pipe tables: vacías, single row, many columns, numérico |
+| `test/code.md` | Code blocks: con/sin lenguaje, Unicode, múltiples por sección |
+| `test/lists.md` | Bullets, ordered, single item, mixed con body |
+| `test/comprehensive.md` | Todos los features combinados |
+
+Uso: `python markforge_convert.py test/<file>.md`
 
 ## Schema JSON
 
@@ -162,8 +174,9 @@ Solo `reportlab` (pip install reportlab).
 4. **Link coloring**: ReportLab 5.x ignora `linkColor`. Solución inline `<font color><u><a href>`.
 5. **multiBuild two-pass**: TOC requiere multiBuild; callbacks de página corren dos veces.
 6. **KeepTogether**: Heading + primer elemento juntos. Si el primero es muy alto, ReportLab lo parte igual.
-7. **System font detection**: `detect_system_mono()` en macOS registra Menlo automáticamente para cubrir Unicode. Courier ya no es el default monospace.
+7. **System font detection**: `detect_system_mono()` en macOS registra Menlo automáticamente para cubrir Unicode.
 8. **topMargin dinámico**: Se reduce a 1.0 cm si `header.show=false`.
+9. **inline_to_xml ordering**: `***text***` se procesa antes que `**text**`/`*text*` para evitar tag mismatch.
 
 ## Pitfalls Conocidos
 
@@ -173,13 +186,14 @@ Solo `reportlab` (pip install reportlab).
 - `None` en celda de tabla → convertido a `""` por `_cell_text()`.
 - Para TOC, `show_cover=false` + `show_toc=true` funciona bien.
 - Fecha auto-add solo detecta keys "date", "fecha", "datum".
-- `###` sub-headings no se convierten en secciones separadas — van como body text.
-- Courier ya no se usa como default monospace (se usa Menlo en macOS), pero si `detect_system_mono()` falla, Courier sigue siendo el último recurso y no soporta Unicode.
+- Sub-headings (`###`-`######`) van como bold en body, no como secciones separadas.
+- Courier es el último recurso si `detect_system_mono()` falla (no cubre Unicode).
+- El monstruo original `pdf_engine.py` vive en git: `git show d62b08d^:pdf_engine.py`
 
 ## Convenciones
 
 - El engine está documentado en inglés para agentes
 - Los mensajes de commit están en inglés, formato Conventional Commits
 - La conversación con el usuario fue en español
-- `generate_pdf.py` es el entry point demo; `md2pdf.py` es el pipeline determinista
+- `generate_pdf.py` es el entry point demo; `markforge_convert.py` es el pipeline determinista
 - Sin tags de version
