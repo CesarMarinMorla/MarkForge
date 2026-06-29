@@ -33,7 +33,7 @@ conversor determinista markdown → PDF. Sin LaTeX, sin Chrome, sin wkhtmltopdf.
 | `markforge/components.py` | `safe_xml()`, `make_*()`, `assemble_section()` |
 | `markforge/__main__.py` | `python -m markforge` entry point |
 | `markforge_convert.py` | Conversor markdown determinista (~410 líneas) |
-| `generate_pdf.py` | Entry point demo, wrapper de markforge_convert |
+| `test/runner.py` | Test runner — ejecuta todos los test/*.md |
 | `docs/CHANGELOG.md` | Historial de cambios |
 | `test/` | Suite de tests sintéticos (6 archivos) |
 
@@ -89,7 +89,7 @@ Solo `reportlab` (pip install reportlab).
 | `test/lists.md` | Bullets, ordered, single item, mixed con body |
 | `test/comprehensive.md` | Todos los features combinados |
 
-Uso: `python markforge_convert.py test/<file>.md`
+Uso: `python test/runner.py` para todos o `python markforge_convert.py test/<file>.md` para uno
 
 ## Schema JSON
 
@@ -195,5 +195,5 @@ Uso: `python markforge_convert.py test/<file>.md`
 - El engine está documentado en inglés para agentes
 - Los mensajes de commit están en inglés, formato Conventional Commits
 - La conversación con el usuario fue en español
-- `generate_pdf.py` es el entry point demo; `markforge_convert.py` es el pipeline determinista
+- `test/runner.py` ejecuta todos los tests; `markforge_convert.py` es el pipeline determinista
 - Sin tags de version
