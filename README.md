@@ -32,7 +32,7 @@ pip install markforge
 Or from source:
 
 ```bash
-git clone https://github.com/cesar/markforge.git
+git clone https://github.com/CesarMarinMorla/MarkForge.git
 cd markforge
 pip install -e .
 ```
@@ -43,7 +43,7 @@ pip install -e .
 
 Create a markdown file with YAML frontmatter:
 
-```markdown
+````markdown
 ---
 title: "My Document"
 subtitle: "A professional PDF"
@@ -77,7 +77,7 @@ def hello():
 | Column 1 | Column 2 |
 |----------|----------|
 | Data 1   | Data 2   |
-```
+````
 
 Convert to PDF:
 
@@ -91,21 +91,21 @@ Create a JSON content file:
 
 ```json
 {
-  "title": "My Document",
-  "subtitle": "A professional PDF",
-  "output": "output.pdf",
-  "show_toc": true,
-  "show_index": true,
-  "theme": {
-    "primary": "#2E86AB",
-    "accent": "#E94560"
-  },
-  "sections": [
-    {
-      "heading": "Introduction",
-      "body": "This is <b>bold</b> and <i>italic</i> text."
-    }
-  ]
+	"title": "My Document",
+	"subtitle": "A professional PDF",
+	"output": "output.pdf",
+	"show_toc": true,
+	"show_index": true,
+	"theme": {
+		"primary": "#2E86AB",
+		"accent": "#E94560"
+	},
+	"sections": [
+		{
+			"heading": "Introduction",
+			"body": "This is <b>bold</b> and <i>italic</i> text."
+		}
+	]
 }
 ```
 
@@ -147,81 +147,81 @@ The JSON schema accepted by `build_pdf()`:
 
 ```json
 {
-  "title": "string (required)",
-  "subtitle": "string",
-  "output": "string",
-  "page_size": "A4 | Letter | Legal",
-  "orientation": "portrait | landscape",
-  "show_toc": true,
-  "show_index": true,
-  "show_cover": true,
-  "show_footer_date": true,
-  "watermark": "string",
-  "fonts": {
-    "sans": {
-      "regular": "path/to/font.ttf",
-      "bold": "path/to/font-bold.ttf",
-      "italic": "path/to/font-italic.ttf",
-      "bold_italic": "path/to/font-bolditalic.ttf"
-    },
-    "mono": {
-      "regular": "path/to/mono.ttf",
-      "bold": "path/to/mono-bold.ttf"
-    },
-    "serif": {
-      "regular": "path/to/serif.ttf",
-      "bold": "path/to/serif-bold.ttf",
-      "italic": "path/to/serif-italic.ttf",
-      "bold_italic": "path/to/serif-bolditalic.ttf"
-    }
-  },
-  "header_footer": {
-    "header": {
-      "show": true,
-      "left": "string",
-      "right": "string"
-    },
-    "footer": {
-      "show": true,
-      "left": "string",
-      "center": "string",
-      "right": "string"
-    }
-  },
-  "theme": {
-    "primary": "#RRGGBB",
-    "accent": "#RRGGBB",
-    "light": "#RRGGBB",
-    "text": "#RRGGBB",
-    "muted": "#RRGGBB"
-  },
-  "meta": {
-    "key": "value"
-  },
-  "sections": [
-    {
-      "heading": "string (required)",
-      "body": "string (with XML inline tags)",
-      "bullets": ["string"],
-      "ordered_list": ["string"],
-      "highlight": "string",
-      "image": {
-        "path": "string",
-        "width": 1.0,
-        "height": 1.0,
-        "caption": "string"
-      },
-      "code": "string",
-      "language": "string",
-      "table": {
-        "headers": ["col1", "col2"],
-        "rows": [["cell1", "cell2"]],
-        "col_widths": [0.5, 0.5]
-      },
-      "page_break": true,
-      "note": "string"
-    }
-  ]
+	"title": "string (required)",
+	"subtitle": "string",
+	"output": "string",
+	"page_size": "A4 | Letter | Legal",
+	"orientation": "portrait | landscape",
+	"show_toc": true,
+	"show_index": true,
+	"show_cover": true,
+	"show_footer_date": true,
+	"watermark": "string",
+	"fonts": {
+		"sans": {
+			"regular": "path/to/font.ttf",
+			"bold": "path/to/font-bold.ttf",
+			"italic": "path/to/font-italic.ttf",
+			"bold_italic": "path/to/font-bolditalic.ttf"
+		},
+		"mono": {
+			"regular": "path/to/mono.ttf",
+			"bold": "path/to/mono-bold.ttf"
+		},
+		"serif": {
+			"regular": "path/to/serif.ttf",
+			"bold": "path/to/serif-bold.ttf",
+			"italic": "path/to/serif-italic.ttf",
+			"bold_italic": "path/to/serif-bolditalic.ttf"
+		}
+	},
+	"header_footer": {
+		"header": {
+			"show": true,
+			"left": "string",
+			"right": "string"
+		},
+		"footer": {
+			"show": true,
+			"left": "string",
+			"center": "string",
+			"right": "string"
+		}
+	},
+	"theme": {
+		"primary": "#RRGGBB",
+		"accent": "#RRGGBB",
+		"light": "#RRGGBB",
+		"text": "#RRGGBB",
+		"muted": "#RRGGBB"
+	},
+	"meta": {
+		"key": "value"
+	},
+	"sections": [
+		{
+			"heading": "string (required)",
+			"body": "string (with XML inline tags)",
+			"bullets": ["string"],
+			"ordered_list": ["string"],
+			"highlight": "string",
+			"image": {
+				"path": "string",
+				"width": 1.0,
+				"height": 1.0,
+				"caption": "string"
+			},
+			"code": "string",
+			"language": "string",
+			"table": {
+				"headers": ["col1", "col2"],
+				"rows": [["cell1", "cell2"]],
+				"col_widths": [0.5, 0.5]
+			},
+			"page_break": true,
+			"note": "string"
+		}
+	]
 }
 ```
 
@@ -279,7 +279,7 @@ Pipe tables with optional caption:
 Table: My Table Caption
 
 | Column 1 | Column 2 |
-|----------|----------|
+| -------- | -------- |
 | Data 1   | Data 2   |
 ```
 
@@ -312,19 +312,19 @@ Example:
 
 ```json
 {
-  "header_footer": {
-    "header": {
-      "show": true,
-      "left": "{title}",
-      "right": "{date}"
-    },
-    "footer": {
-      "show": true,
-      "left": "Confidential",
-      "center": "{page}",
-      "right": "v{version}"
-    }
-  }
+	"header_footer": {
+		"header": {
+			"show": true,
+			"left": "{title}",
+			"right": "{date}"
+		},
+		"footer": {
+			"show": true,
+			"left": "Confidential",
+			"center": "{page}",
+			"right": "v{version}"
+		}
+	}
 }
 ```
 
@@ -334,13 +334,13 @@ Customize colors with the `theme` block:
 
 ```json
 {
-  "theme": {
-    "primary": "#2E86AB",
-    "accent": "#E94560",
-    "light": "#F8F9FA",
-    "text": "#212529",
-    "muted": "#6C757D"
-  }
+	"theme": {
+		"primary": "#2E86AB",
+		"accent": "#E94560",
+		"light": "#F8F9FA",
+		"text": "#212529",
+		"muted": "#6C757D"
+	}
 }
 ```
 
@@ -433,9 +433,6 @@ markforge/
 - Images in markdown render as alt text only (use JSON schema for images)
 - No nested list support (planned for future release)
 
-
 ## Contributing
 
 Contributions are welcome! Please see TASKS.md for the current development backlog.
-
-

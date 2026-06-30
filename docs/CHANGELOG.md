@@ -1,6 +1,6 @@
 # Changelog
 
-## v1.2.0 (2026-06-29)
+## v0.3.0 (2026-06-29)
 
 Refactor to modular package and Phase 1 polish.
 
@@ -24,7 +24,7 @@ Refactor to modular package and Phase 1 polish.
   cell to `""` to prevent crashes.
 - **__main__.py**: `python -m markforge` now works as entry point.
 
-## v1.1.0 (2026-06-25)
+## v0.2.0 (2026-06-25)
 
 Custom fonts via JSON schema. Atkinson Hyperlegible + JetBrains Mono demo.
 Header/footer configurable content.
@@ -61,7 +61,7 @@ Header/footer configurable content.
   required. Usage: `python markforge_convert.py doc.md [output.pdf]`.
 - **generate_pdf.py**: Simplified to a thin wrapper around markforge_convert.convert().
 
-## v1.0.0 (2026-06-25)
+## v0.1.0 (2026-06-25)
 
 First stable release of **MarkForge** (formerly Agent PDF Engine). Deterministic engine for professional PDF generation from JSON, using ReportLab Platypus.
 
@@ -106,7 +106,7 @@ python -m markforge path/to/content.json output.pdf
 
 ### Known Limitations
 
-- Courier does not support Unicode: use only ASCII for code blocks (no ├ ─ │ -> down) -- resolved in v1.2.0 (Menlo auto-detect)
+- Courier does not support Unicode: use only ASCII for code blocks (no ├ ─ │ -> down) -- resolved in v0.3.0 (Menlo auto-detect)
 - `linkColor` in ParagraphStyle is ignored by ReportLab 5.x: use `<font color>` inline
-- Ordered lists not supported -- resolved in v1.1.0
-- No form fields -- resolved in v1.1.0 (schema validation)
+- Ordered lists not supported -- resolved in v0.2.0
+- No form fields -- resolved in v0.2.0 (schema validation)
