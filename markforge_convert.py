@@ -14,13 +14,15 @@ import sys
 from pathlib import Path
 
 from markforge import build_pdf
+from markforge.fonts import DEFAULT_FONTS, detect_system_mono
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # INLINE MARKDOWN → XML
 # ─────────────────────────────────────────────────────────────────────────────
 
-def inline_to_xml(text: str, accent: str = "#E94560") -> str:
+def inline_to_xml(text: str, accent: str = "#E94560",
+                  mono_font: str = "Courier") -> str:
     """Convert inline markdown formatting to ReportLab XML tags."""
     # Escape XML special chars first (except within XML entities)
     text = re.sub(r'&(?!(?:[a-zA-Z]+|#\d+|#x[0-9a-fA-F]+);)', '&amp;', text)
@@ -48,8 +50,12 @@ def inline_to_xml(text: str, accent: str = "#E94560") -> str:
     text = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<i>\1</i>', text)
     text = re.sub(r'(?<!_)_(?!_)(.+?)(?<!_)_(?!_)', r'<i>\1</i>', text)
 
-    # Inline code: `code` → just keep as plain text (no inline monospace)
-    text = re.sub(r'`([^`]+)`', r'\1', text)
+    # Inline code: `code` → monospace font span with rounded light gray
+    # background. Non-breaking spaces provide margin around code text.
+    _nbsp = '\u00a0'
+    text = re.sub(r'`([^`]+)`',
+                  rf'{_nbsp}<font face="{mono_font}" backcolor="#EDEDED">\1</font>{_nbsp}',
+                  text)
 
     return text
 
@@ -90,8 +96,8 @@ def parse_frontmatter(lines: list[str]) -> tuple[dict, list[str]]:
 # TABLE PARSING (pipe tables)
 # ─────────────────────────────────────────────────────────────────────────────
 
-def parse_pipe_table(lines: list[str], start: int, accent: str
-                     ) -> tuple[dict | None, int]:
+def parse_pipe_table(lines: list[str], start: int, accent: str,
+                     mono_font: str = "Courier") -> tuple[dict | None, int]:
     """
     Try to parse a pipe table starting at lines[start].
     Returns (table_dict, next_line_index) or (None, start).
@@ -129,7 +135,7 @@ def parse_pipe_table(lines: list[str], start: int, accent: str
         while len(cells) < len(headers):
             cells.append("")
         cells = cells[:len(headers)]
-        rows.append([inline_to_xml(c, accent) for c in cells])
+        rows.append([inline_to_xml(c, accent, mono_font) for c in cells])
         i += 1
 
     if not rows:
@@ -176,7 +182,8 @@ def parse_code_block(lines: list[str], start: int) -> tuple[str | None, int]:
 # SECTION BUILDER
 # ─────────────────────────────────────────────────────────────────────────────
 
-def build_sections(body_lines: list[str], accent: str) -> list[dict]:
+def build_sections(body_lines: list[str], accent: str,
+                   mono_font: str = "Courier") -> list[dict]:
     """
     Convert parsed markdown body into a list of section dicts.
 
@@ -197,7 +204,7 @@ def build_sections(body_lines: list[str], accent: str) -> list[dict]:
         # Extract heading
         raw_heading = body_lines[pos]
         heading = re.sub(r'^##+\s+', '', raw_heading).strip()
-        heading = inline_to_xml(heading, accent)
+        heading = inline_to_xml(heading, accent, mono_font)
 
         # Determine end of this section
         end = heading_positions[idx + 1] if idx + 1 < len(heading_positions) else len(body_lines)
@@ -230,7 +237,7 @@ def build_sections(body_lines: list[str], accent: str) -> list[dict]:
                     hl += " " + re.sub(r'^>\s?', '', sec_lines[j].strip())
                     j += 1
                 blocks.append({"type": "highlight",
-                               "content": inline_to_xml(hl, accent)})
+                               "content": inline_to_xml(hl, accent, mono_font)})
                 i = j
                 continue
 
@@ -255,7 +262,7 @@ def build_sections(body_lines: list[str], accent: str) -> list[dict]:
                 sub = re.sub(r'^#{3,6}\s+', '', line)
                 blocks.append({"type": "sub_heading",
                                "level": level,
-                               "content": inline_to_xml(sub, accent)})
+                               "content": inline_to_xml(sub, accent, mono_font)})
                 i += 1
                 continue
 
@@ -264,7 +271,7 @@ def build_sections(body_lines: list[str], accent: str) -> list[dict]:
                 bullet_items = []
                 while i < len(sec_lines) and re.match(r'^[-*]\s+', sec_lines[i].strip()):
                     item = re.sub(r'^[-*]\s+', '', sec_lines[i].strip())
-                    item = inline_to_xml(item, accent)
+                    item = inline_to_xml(item, accent, mono_font)
                     bullet_items.append(item)
                     i += 1
                 blocks.append({"type": "bullet", "items": bullet_items})
@@ -275,7 +282,7 @@ def build_sections(body_lines: list[str], accent: str) -> list[dict]:
                 ordered_items = []
                 while i < len(sec_lines) and re.match(r'^\d+[.)]\s+', sec_lines[i].strip()):
                     item = re.sub(r'^\d+[.)]\s+', '', sec_lines[i].strip())
-                    item = inline_to_xml(item, accent)
+                    item = inline_to_xml(item, accent, mono_font)
                     ordered_items.append(item)
                     i += 1
                 blocks.append({"type": "ordered", "items": ordered_items})
@@ -296,7 +303,7 @@ def build_sections(body_lines: list[str], accent: str) -> list[dict]:
                 j += 1
 
             blocks.append({"type": "paragraph",
-                           "content": inline_to_xml(para, accent)})
+                           "content": inline_to_xml(para, accent, mono_font)})
             i = j
 
         # Build section dict with blocks + backward-compat fields
@@ -400,6 +407,10 @@ def convert(md_path: str, output_path: str | None = None) -> str:
     theme.setdefault("muted", "#888888")
     content["theme"] = theme
 
+    # ── Detect mono font for inline code ────────────────────────────────
+    mono = detect_system_mono()
+    mono_font = mono[0] if mono else DEFAULT_FONTS["mono"][0]
+
     # Meta block
     meta = {}
     if "author" in frontmatter:
@@ -410,13 +421,15 @@ def convert(md_path: str, output_path: str | None = None) -> str:
     for line in body_lines[:5]:
         m = re.match(r'\*\*(.+?):\*\*\s*(.+)', line.strip())
         if m:
-            meta[m.group(1).lower()] = inline_to_xml(m.group(2).strip())
+            meta[m.group(1).lower()] = inline_to_xml(m.group(2).strip(), mono_font=mono_font)
 
     if meta:
         content["meta"] = meta
 
     # ── Build sections ──────────────────────────────────────────────────
-    content["sections"] = build_sections(body_lines, theme.get("accent", "#E94560"))
+    content["sections"] = build_sections(
+        body_lines, theme.get("accent", "#E94560"), mono_font,
+    )
 
     # ── Render ──────────────────────────────────────────────────────────
     output = build_pdf(content, output_path)

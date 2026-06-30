@@ -11,7 +11,7 @@ titlepage-rule-color: "0D3B66"
 
 ## 1. Text Formatting
 
-This section covers **bold text**, *italic text*, and ***bold italic*** combinations. Inline `code` spans are stripped of backticks and rendered as plain text.
+This section covers **bold text**, *italic text*, and ***bold italic*** combinations. Inline `code` spans are rendered in a monospace font (Menlo on macOS, Courier fallback) with a rounded light gray background.
 
 Links are rendered with an accent color underline: [MarkForge Engine](https://example.com/markforge) and [ReportLab](https://www.reportlab.com/).
 

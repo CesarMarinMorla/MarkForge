@@ -21,6 +21,71 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+# ── Inline code rounded background ──────────────────────────────────────────
+# Monkey-patch ReportLab's _do_post_text to use roundRect instead of rect
+# for inline fragment backColors (code spans rendered with rounded corners).
+import reportlab.platypus.paragraph as _rl_para
+
+_original_do_post_text = _rl_para._do_post_text
+
+
+def _patched_do_post_text(tx):
+    xs = tx.XtraState
+    y0 = xs.cur_y
+    f = xs.f
+    leading = xs.style.leading
+    autoLeading = xs.autoLeading
+    fontSize = f.fontSize
+    if autoLeading == 'max':
+        leading = max(leading, 1.2 * fontSize)
+    elif autoLeading == 'min':
+        leading = 1.2 * fontSize
+
+    if xs.backColors:
+        yl = y0 + fontSize
+        ydesc = yl - leading
+        pad = 1.5
+        for x1, x2, c in xs.backColors:
+            tx._canvas.setFillColor(c)
+            tx._canvas.roundRect(x1 - pad, ydesc, x2 - x1 + 2 * pad,
+                                 leading, radius=2, stroke=0, fill=1)
+        xs.backColors = []
+        xs.backColor = None
+
+    for (((n, link), x1), lo, hi), x2 in sorted(xs.links.values()):
+        _rl_para._doLink(tx, link, (x1, y0 + lo, x2, y0 + hi))
+    xs.links = {}
+
+    if xs.us_lines:
+        dw = tx._defaultLineWidth
+        values = dict(L=fontSize)
+        for (((n, k, c, w, o, r, m, g), fs, tc, x1), fsmax), x2 in \
+                sorted(xs.us_lines.values()):
+            underline = k == 'underline'
+            values['f'] = fs
+            values['F'] = fsmax
+            lw = _rl_para._usConv(w, values, default=tx._defaultLineWidth)
+            lg = _rl_para._usConv(g, values, default=1)
+            dy = lg + lw
+            if not underline:
+                dy = -dy
+            y = y0 + r + _rl_para._usConv(
+                o if o != '' else ('-0.125*L' if underline else '0.25*L'),
+                values,
+            )
+            if not c:
+                c = tc
+            while m > 0:
+                tx._do_line(x1, y, x2, y, lw, c)
+                y -= dy
+                m -= 1
+        xs.us_lines = {}
+
+    xs.cur_y -= leading
+
+
+_rl_para._do_post_text = _patched_do_post_text
+
 
 def safe_xml(text: str) -> str:
     """Escape raw ampersands not already part of an XML entity."""
