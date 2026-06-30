@@ -76,7 +76,7 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
 
     # ── Resolve meta ─────────────────────────────────────────────────────
     meta = dict(content.get("meta", {}))
-    date_keys = {"date", "fecha", "datum"}
+    date_keys = {"date"}
     if not date_keys.intersection(k.lower() for k in meta):
         meta["date"] = datetime.now().strftime("%B %d, %Y")
 

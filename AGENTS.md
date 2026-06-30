@@ -1,99 +1,99 @@
-# MarkForge — Contexto para Continuar
+# MarkForge — Context for Continuation
 
-## Estado Actual
+## Current State
 
-Proyecto maduro. Motor de PDF profesional desde JSON via ReportLab,
-conversor determinista markdown → PDF. Sin LaTeX, sin Chrome, sin wkhtmltopdf.
+Mature project. Professional PDF engine from JSON via ReportLab,
+deterministic markdown -> PDF converter. No LaTeX, no Chrome, no wkhtmltopdf.
 
 ## Pipeline
 
 ```
-.md  ─►  markforge_convert.py  ─►  dict JSON  ─►  markforge/ (package)  ─►  .pdf
-                 (determinista)       validate_content()
-                                       build_theme() → C
-                                       register_user_fonts() → F
-                                       detect_system_mono()     ← macOS: Menlo
-                                       build_styles(C, F) → S
-                                       assemble_section()
-                                       doc.multiBuild()
+.md  ->  markforge/convert/  ->  dict JSON  ->  markforge/ (package)  ->  .pdf
+                (deterministic)    validate_content()
+                                   build_theme() -> C
+                                   register_user_fonts() -> F
+                                   detect_system_mono()     <- macOS: Menlo
+                                   build_styles(C, F) -> S
+                                   assemble_section()
+                                   doc.multiBuild()
 ```
 
-## Archivos
+## Files
 
-| Archivo | Rol |
+| File | Role |
 |---|---|
-| `markforge/` | Package modular (8 módulos) |
-| `markforge/__init__.py` | Re-exporta `build_pdf`, `main` |
+| `markforge/` | Modular package (8 modules) |
+| `markforge/convert/` | Markdown -> dict converter subpackage (6 modules) |
+| `markforge/__init__.py` | Re-exports `build_pdf`, `main` |
 | `markforge/core.py` | `build_pdf()`, CLI `main()`, `resolve_page_size()` |
-| `markforge/schema.py` | `validate_content()` — schema completo |
+| `markforge/schema.py` | `validate_content()` -- full schema |
 | `markforge/theme.py` | `build_theme()`, `DEFAULT_THEME` |
 | `markforge/fonts.py` | `register_user_fonts()`, `detect_system_mono()`, `DEFAULT_FONTS` |
-| `markforge/chrome.py` | `PageChrome` — header/footer/watermark canvas |
-| `markforge/styles.py` | `build_styles()` — ParagraphStyles con colores y fonts |
+| `markforge/chrome.py` | `PageChrome` -- header/footer/watermark canvas |
+| `markforge/styles.py` | `build_styles()` -- ParagraphStyles with colors and fonts |
 | `markforge/components.py` | `safe_xml()`, `make_*()`, `assemble_section()` |
 | `markforge/__main__.py` | `python -m markforge` entry point |
-| `markforge_convert.py` | Conversor markdown determinista (~473 líneas) |
-| `test/runner.py` | Test runner — ejecuta todos los test/*.md |
-| `docs/CHANGELOG.md` | Historial de cambios |
-| `test/` | Suite de tests sintéticos (6 archivos) |
+| `test/runner.py` | Test runner -- runs all test/*.md |
+| `docs/CHANGELOG.md` | Change history |
+| `test/` | Synthetic test suite (6 files) |
 
-## Dependencia
+## Dependencies
 
-Solo `reportlab` (pip install reportlab).
+Only `reportlab` (pip install reportlab).
 
-## Lo Implementado
+## Implemented
 
 ### Core Engine (markforge/)
 
-- **Portada** con título, subtítulo, barra acento, tabla de metadatos
-- **TOC** opcional via `show_toc: true` (multiBuild two-pass). Incluye heading "Table of Contents", dotted leaders (`.`), separador HR al final
-- **Index** opcional via `show_index: true` (SimpleIndex, <<term>> en md). Incluye heading "Index", aparece en TOC
-- **Secciones** con heading + regla horizontal de color
-- **Body text** justificado, soporta `<b> <i> <br/> <a href> <sub> <super>`
-- **Bullets** con prefijo `•` y left indent
-- **Ordered lists** con prefijo `1. 2. 3.`
-- **Highlight boxes** (call-out con borde izquierdo de color)
-- **Tablas** con header repetido, filas alternadas, grid, col_widths proporcionales
-- **Inline code blocks** (Preformatted, fondo gris, preserva indentación)
-- **Inline code spans** (`...`) con fondo redondeado gris claro, fuente monospace, pad=1.5 horizontal, vpad=0.5 vertical
-- **Imágenes** embedded con caption opcional
-- **Watermark** diagonal semi-transparente en todas las páginas
-- **Page break** forzado por sección (`page_break: true`)
+- **Cover page** with title, subtitle, accent bar, metadata table
+- **TOC** optional via `show_toc: true` (multiBuild two-pass). Includes heading "Table of Contents", dotted leaders (`.`), HR separator at end
+- **Index** optional via `show_index: true` (SimpleIndex, <<term>> in md). Includes heading "Index", appears in TOC
+- **Sections** with heading + colored horizontal rule
+- **Body text** justified, supports `<b> <i> <br/> <a href> <sub> <super>`
+- **Bullets** with `•` prefix and left indent
+- **Ordered lists** with `1. 2. 3.` prefix
+- **Highlight boxes** (call-out with colored left border)
+- **Tables** with repeated header, alternating rows, grid, proportional col_widths
+- **Inline code blocks** (Preformatted, gray background, preserves indentation)
+- **Inline code spans** (`...`) with rounded light gray background, monospace font, pad=1.5 horizontal, vpad=0.5 vertical
+- **Images** embedded with optional caption
+- **Watermark** diagonal semi-transparent on all pages
+- **Page break** forced per section (`page_break: true`)
 - **Page size/orientation**: A4/Letter/Legal, portrait/landscape
 - **Theming**: primary, accent, light, text, muted (hex colors)
-- **Custom TTF fonts**: registro via `"fonts"` block en JSON, naming convention `CustomSans-Bold`
-- **System font auto-detection**: En macOS, registra Menlo automáticamente como monospace (cubre Unicode)
+- **Custom TTF fonts**: registration via `"fonts"` block in JSON, naming convention `CustomSans-Bold`
+- **System font auto-detection**: On macOS, registers Menlo automatically as monospace (covers Unicode)
 - **Header/footer configurable**: `"header_footer"` block, placeholders `{page} {date} {title} {version}`
-- **header.show=false**: topMargin se reduce de 2.2 cm a 1.0 cm para recuperar espacio
-- **Schema validation**: `validate_content()` chequea todo el schema + rutas de archivo antes de renderizar
-- **CLI**: `python -m markforge '<json>'` o `python markforge/core.py file.json`
+- **header.show=false**: topMargin reduces from 2.2 cm to 1.0 cm to reclaim space
+- **Schema validation**: `validate_content()` checks full schema + file paths before rendering
+- **CLI**: `python -m markforge '<json>'` or `python markforge/core.py file.json`
 
-### markforge_convert.py
+### markforge/convert/ (subpackage)
 
-- Parsea frontmatter YAML (Pandoc-style) → title, subtitle, author, date, toc, theme colors
-- Inline markdown: `**bold**`, `*italic*`, `***bold italic***`, `` `code` ``, `[links](url)` → XML ReportLab
-- Pipe tables → `table` schema con `col_widths` proporcionales
-- Fenced code blocks ``` → `code` field (múltiples se unen con `\n\n`)
-- Bullet lists (`- `) → `bullets` array
-- Ordered lists (`1. `) → `ordered_list` array
-- Blockquotes (`> `) → `highlight`
-- Horizontal rules (`---`) → ignoradas
-- `#`/`##` headings → section boundaries (creates new section)
-- Sub-headings (`###`-`######`) → bold en body text
-- Index terms (`<<term>>`) → `<index item="term"/>` para índice alfabético
+- Parses YAML frontmatter (Pandoc-style) -> title, subtitle, author, date, toc, theme colors
+- Inline markdown: `**bold**`, `*italic*`, `***bold italic***`, `` `code` ``, `[links](url)` -> ReportLab XML
+- Pipe tables -> `table` schema with proportional `col_widths`
+- Fenced code blocks ``` -> `code` field (multiple joined with `\n\n`)
+- Bullet lists (`- `) -> `bullets` array
+- Ordered lists (`1. `) -> `ordered_list` array
+- Blockquotes (`> `) -> `highlight`
+- Horizontal rules (`---`) -> ignored
+- `#`/`##` headings -> section boundaries (creates new section)
+- Sub-headings (`###`-`######`) -> bold in body text
+- Index terms (`<<term>>`) -> `<index item="term"/>` for alphabetical index
 
 ## Test Suite
 
-| Archivo | Cobertura |
+| File | Coverage |
 |---|---|
-| `test/basic.md` | Smoke test mínimo: cover, TOC, body text |
+| `test/basic.md` | Minimum smoke test: cover, TOC, body text |
 | `test/formatting.md` | Inline: bold, italic, links, code, accents, edge cases |
-| `test/tables.md` | Pipe tables: vacías, single row, many columns, numérico |
-| `test/code.md` | Code blocks: con/sin lenguaje, Unicode, múltiples por sección |
-| `test/lists.md` | Bullets, ordered, single item, mixed con body |
-| `test/comprehensive.md` | Todos los features combinados |
+| `test/tables.md` | Pipe tables: empty, single row, many columns, numeric |
+| `test/code.md` | Code blocks: with/without language, Unicode, multiple per section |
+| `test/lists.md` | Bullets, ordered, single item, mixed with body |
+| `test/comprehensive.md` | All features combined |
 
-Uso: `python test/runner.py` para todos o `python markforge_convert.py test/<file>.md` para uno
+Usage: `python test/runner.py` for all or `python -m markforge.convert test/<file>.md` for one
 
 ## Schema JSON
 
@@ -107,7 +107,6 @@ Uso: `python test/runner.py` para todos o `python markforge_convert.py test/<fil
   "show_toc":     true,
   "show_index":   true,
   "show_cover":   true,
-  "show_cover":  true,
   "show_footer_date": true,
   "watermark":   "string",
   "fonts": {
@@ -146,67 +145,66 @@ Uso: `python test/runner.py` para todos o `python markforge_convert.py test/<fil
 }
 ```
 
-## Funciones Clave
+## Key Functions
 
-| Función | Módulo | Qué hace |
+| Function | Module | What it does |
 |---|---|---|
-| `validate_content(content)` | `schema.py` | Valida schema completo + rutas de archivo |
-| `resolve_page_size(content)` | `core.py` | Retorna (width, height) en puntos |
-| `build_theme(theme_config)` | `theme.py` | Mergea defaults con overrides |
-| `safe_xml(text)` | `components.py` | Escapa `&` no-entity en texto |
-| `register_user_fonts(fonts_config)` | `fonts.py` | Registra TTF + auto-detecta system fonts |
-| `detect_system_mono()` | `fonts.py` | Busca Menlo en macOS, fallback Courier |
-| `build_styles(C, F)` | `styles.py` | Construye ParagraphStyles con colores y fonts |
-| `PageChrome` | `chrome.py` | Header/footer/watermark canvas por página |
-| `make_cover(...)` | `components.py` | Portada flowable |
-| `make_section_header(...)` | `components.py` | Heading + regla horizontal |
-| `make_body(text, S)` | `components.py` | Párrafo body |
-| `make_bullets(items, S)` | `components.py` | Lista de viñetas |
-| `make_ordered_list(items, S)` | `components.py` | Lista numerada |
+| `validate_content(content)` | `schema.py` | Validates full schema + file paths |
+| `resolve_page_size(content)` | `core.py` | Returns (width, height) in points |
+| `build_theme(theme_config)` | `theme.py` | Merges defaults with overrides |
+| `safe_xml(text)` | `components.py` | Escapes non-entity `&` in text |
+| `register_user_fonts(fonts_config)` | `fonts.py` | Registers TTF + auto-detects system fonts |
+| `detect_system_mono()` | `fonts.py` | Looks for Menlo on macOS, fallback Courier |
+| `build_styles(C, F)` | `styles.py` | Builds ParagraphStyles with colors and fonts |
+| `PageChrome` | `chrome.py` | Header/footer/watermark canvas per page |
+| `make_cover(...)` | `components.py` | Cover page flowable |
+| `make_section_header(...)` | `components.py` | Heading + horizontal rule |
+| `make_body(text, S)` | `components.py` | Body paragraph |
+| `make_bullets(items, S)` | `components.py` | Bullet list |
+| `make_ordered_list(items, S)` | `components.py` | Numbered list |
 | `make_highlight(text, S, C, text_width)` | `components.py` | Call-out box |
-| `make_image(img, S, text_width)` | `components.py` | Imagen embedded |
-| `make_table(headers, rows, S, C, text_width, col_widths)` | `components.py` | Tabla con grid |
+| `make_image(img, S, text_width)` | `components.py` | Embedded image |
+| `make_table(headers, rows, S, C, text_width, col_widths)` | `components.py` | Table with grid |
 | `make_code(code_text, lang, C, text_width, mono_font)` | `components.py` | Code block Preformatted |
-| `make_note(text, S)` | `components.py` | Nota italic muted |
-| `make_index(F, C, text_width)` | `components.py` | Index alfabético SimpleIndex |
-| `_parse_content_blocks(lines, accent, mono_font)` | `markforge_convert.py` | Parsea lines markdown → blocks dict |
-| `assemble_section(section, S, C, text_width, toc, mono_font)` | `components.py` | Arma una sección completa |
-| `build_pdf(content, output_path)` | `core.py` | Entry point principal |
+| `make_note(text, S)` | `components.py` | Italic muted note |
+| `make_index(F, C, text_width)` | `components.py` | Alphabetical SimpleIndex |
+| `parse_content_blocks(lines, accent, mono_font)` | `convert/blocks.py` | Parses markdown lines -> blocks dict |
+| `assemble_section(section, S, C, text_width, toc, mono_font)` | `components.py` | Builds a complete section |
+| `build_pdf(content, output_path)` | `core.py` | Main entry point |
 | `main()` | `core.py` | CLI |
 
-## Decisiones de Diseño Importantes
+## Important Design Decisions
 
-1. **ReportLab vs weasyprint/pdfkit/fpdf2**: ReportLab gana porque no necesita Chrome/GTK/TeX.
-2. **Canvas + Platypus**: Canvas para chrome, Platypus para body content flow.
-3. **Font naming convention**: `CustomSans-Bold` (con guión) para que `<b>` resuelva la variante TTF.
-4. **Link coloring**: ReportLab 5.x ignora `linkColor`. Solución inline `<font color><u><a href>`.
-5. **multiBuild two-pass**: TOC requiere multiBuild; callbacks de página corren dos veces.
-6. **KeepTogether**: Heading + primer elemento juntos. Si el primero es muy alto, ReportLab lo parte igual.
-7. **_tocInfo propagation**: `_tocInfo` se setea en el heading `Paragraph`, pero `assemble_section` lo envuelve en `KeepTogether`. `afterFlowable` solo ve el `KeepTogether`, así que `_tocInfo` debe propagarse explícitamente al wrapper. Caso contrario el TOC nunca recibe entradas.
-8. **System font detection**: `detect_system_mono()` en macOS registra Menlo automáticamente para cubrir Unicode.
-9. **topMargin dinámico**: Se reduce a 1.0 cm si `header.show=false`.
-10. **inline_to_xml ordering**: `***text***` se procesa antes que `**text**`/`*text*` para evitar tag mismatch.
+1. **ReportLab vs weasyprint/pdfkit/fpdf2**: ReportLab wins because it doesn't need Chrome/GTK/TeX.
+2. **Canvas + Platypus**: Canvas for chrome, Platypus for body content flow.
+3. **Font naming convention**: `CustomSans-Bold` (with dash) so `<b>` resolves the TTF variant.
+4. **Link coloring**: ReportLab 5.x ignores `linkColor`. Solution: inline `<font color><u><a href>`.
+5. **multiBuild two-pass**: TOC requires multiBuild; page callbacks run twice.
+6. **KeepTogether**: Heading + first element together. If the first is too tall, ReportLab splits it anyway.
+7. **_tocInfo propagation**: `_tocInfo` is set on the heading `Paragraph`, but `assemble_section` wraps it in `KeepTogether`. `afterFlowable` only sees the `KeepTogether`, so `_tocInfo` must be propagated explicitly to the wrapper. Otherwise the TOC never receives entries.
+8. **System font detection**: `detect_system_mono()` on macOS registers Menlo automatically to cover Unicode.
+9. **Dynamic topMargin**: Reduced to 1.0 cm if `header.show=false`.
+10. **inline_to_xml ordering**: `***text***` is processed before `**text**`/`*text*` to avoid tag mismatch.
 
-## Pitfalls Conocidos
+## Known Pitfalls
 
-- `footer.right` en `header_footer` tiene prioridad sobre `show_footer_date`.
-- Font paths en `fonts` block validados en `validate_content()` pero errores de registro TTF se silencian.
-- Image path inexistente → renderiza "[Image not found: path]".
-- `None` en celda de tabla → convertido a `""` por `_cell_text()`.
-- Para TOC, `show_cover=false` + `show_toc=true` funciona bien.
-- Fecha auto-add solo detecta keys "date", "fecha", "datum".
-- Sub-headings (`###`-`######`) van como bold en body, no como secciones separadas.
-- Courier es el último recurso si `detect_system_mono()` falla (no cubre Unicode).
-- Index requiere `canvasmaker` custom en `multiBuild` para registrar callbacks de `<index item="term"/>`.
-- El TOC heading "Table of Contents" NO tiene `_tocInfo` (evitar referencia circular). El Index heading sí tiene `_tocInfo` y aparece en el TOC.
-- `dotsMinLevel` del TOC debe coincidir con el level de `_tocInfo` (ambos a 0) para que los dotted leaders se rendericen.
-- Preamble content (antes del primer `## heading`) era silenciosamente descartado. Ahora `_parse_content_blocks()` lo procesa y lo antepone a la primera sección.
-- El monstruo original `pdf_engine.py` vive en git: `git show d62b08d^:pdf_engine.py`
+- `footer.right` in `header_footer` takes priority over `show_footer_date`.
+- Font paths in `fonts` block validated in `validate_content()` but TTF registration errors are silenced.
+- Non-existent image path -> renders "[Image not found: path]".
+- `None` in table cell -> converted to `""` by `_cell_text()`.
+- For TOC, `show_cover=false` + `show_toc=true` works fine.
+- Date auto-add only detects key "date".
+- Sub-headings (`###`-`######`) go as bold in body, not as separate sections.
+- Courier is the last resort if `detect_system_mono()` fails (doesn't cover Unicode).
+- Index requires custom `canvasmaker` in `multiBuild` to register `<index item="term"/>` callbacks.
+- The TOC heading "Table of Contents" does NOT have `_tocInfo` (avoids circular reference). The Index heading does have `_tocInfo` and appears in the TOC.
+- `dotsMinLevel` of the TOC must match the level of `_tocInfo` (both at 0) for dotted leaders to render.
+- Preamble content (before the first `## heading`) was silently discarded. Now `parse_content_blocks()` processes it and prepends it to the first section.
+- The original `pdf_engine.py` monolith lives in git: `git show d62b08d^:pdf_engine.py`
 
-## Convenciones
+## Conventions
 
-- El engine está documentado en inglés para agentes
-- Los mensajes de commit están en inglés, formato Conventional Commits
-- La conversación con el usuario fue en español
-- `test/runner.py` ejecuta todos los tests; `markforge_convert.py` es el pipeline determinista
-- Sin tags de version
+- The engine is documented in English for agents
+- Commit messages are in English, Conventional Commits format
+- `test/runner.py` runs all tests; `markforge/convert/` is the deterministic pipeline
+- No version tags
