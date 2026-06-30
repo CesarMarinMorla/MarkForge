@@ -204,8 +204,9 @@ def _parse_content_blocks(lines: list[str], accent: str,
     while i < len(lines):
         line = lines[i]
 
-        # Skip HRs
+        # Horizontal rules
         if re.match(r'^-{3,}\s*$', line.strip()):
+            blocks.append({"type": "hr"})
             i += 1
             continue
 
@@ -318,7 +319,8 @@ def _parse_content_blocks(lines: list[str], accent: str,
                     or nxt.startswith(">")
                     or re.match(r'^#{3,6}\s+', nxt)
                     or re.match(r'^[-*]\s+', nxt)
-                    or re.match(r'^\d+[.)]\s+', nxt)):
+                    or re.match(r'^\d+[.)]\s+', nxt)
+                    or re.match(r'^-{3,}\s*$', nxt)):
                 break
             para += " " + nxt
             j += 1
@@ -342,10 +344,14 @@ def build_sections(body_lines: list[str], accent: str,
     blocks. Sub-headings (``###`` through ``######``) become block type
     ``sub_heading`` with a numeric ``level``.
     """
-    # Find all heading positions
+    # Find all heading positions (skip lines inside fenced code blocks)
     heading_positions = []
+    in_code_block = False
     for i, line in enumerate(body_lines):
-        if re.match(r'^#{1,2}\s+', line):
+        if line.startswith("```"):
+            in_code_block = not in_code_block
+            continue
+        if not in_code_block and re.match(r'^#{1,2}\s+', line):
             heading_positions.append(i)
 
     # Parse preamble (content before first heading) into blocks
