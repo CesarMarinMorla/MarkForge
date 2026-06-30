@@ -7,6 +7,7 @@ import re
 import sys
 from datetime import datetime
 from pathlib import Path
+from types import MethodType
 
 from reportlab.lib.pagesizes import A4, LETTER, LEGAL
 from reportlab.lib.styles import ParagraphStyle
@@ -110,6 +111,12 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
         topMargin    = top_margin,
         bottomMargin = 2.0 * cm,
     )
+
+    def _after_flowable(self, flowable):
+        if hasattr(flowable, '_tocInfo'):
+            self.notify('TOCEntry', flowable._tocInfo + (self.page,))
+
+    doc.afterFlowable = MethodType(_after_flowable, doc)
 
     # ── Build story ──────────────────────────────────────────────────────
     show_toc = content.get("show_toc", False)
