@@ -169,20 +169,62 @@ def make_body(text: str, S: dict) -> list:
     return [Paragraph(safe_xml(text), S["body"])]
 
 
-def make_bullets(items: list[str], S: dict) -> list:
-    """Bulleted list with bullet prefix and left indent."""
+def make_bullets(items: list[str], S: dict,
+                 levels: list[int] | None = None) -> list:
+    """Bulleted list with bullets, optional nesting levels (0=top)."""
     elems = []
-    for item in items:
-        elems.append(Paragraph(f"&bull; {safe_xml(item)}", S["bullet"]))
+    for idx, item in enumerate(items):
+        level = levels[idx] if levels else 0
+        indent = level * 20
+        style = ParagraphStyle(
+            "nested_bullet",
+            parent=S["bullet"],
+            leftIndent=S["bullet"].leftIndent + indent,
+        )
+        elems.append(Paragraph(f"&bull; {safe_xml(item)}", style))
     elems.append(Spacer(1, 4))
     return elems
 
 
-def make_ordered_list(items: list[str], S: dict) -> list:
-    """Ordered list with 1. 2. 3. prefix."""
+def make_task_list(items: list[str], checked: list[bool], S: dict) -> list:
+    """Task list with checkbox markers."""
     elems = []
-    for i, item in enumerate(items, start=1):
-        elems.append(Paragraph(f"<b>{i}.</b>&nbsp; {safe_xml(item)}", S["bullet"]))
+    for item, chk in zip(items, checked):
+        char = "&#x2611;" if chk else "&#x2610;"
+        elems.append(Paragraph(f'{char} {safe_xml(item)}', S["bullet"]))
+    elems.append(Spacer(1, 4))
+    return elems
+
+
+def make_ordered_list(items: list[str], S: dict,
+                      levels: list[int] | None = None) -> list:
+    """Ordered list with 1. 2. 3. prefix, optional nesting."""
+    elems = []
+    for idx, item in enumerate(items):
+        level = levels[idx] if levels else 0
+        indent = level * 20
+        style = ParagraphStyle(
+            "nested_ordered",
+            parent=S["bullet"],
+            leftIndent=S["bullet"].leftIndent + indent,
+        )
+        elems.append(Paragraph(f"<b>{idx + 1}.</b>&nbsp; {safe_xml(item)}", style))
+    elems.append(Spacer(1, 4))
+    return elems
+
+
+def make_definition_list(terms: list[str], defs: list[str], S: dict) -> list:
+    """Definition list: term (bold) + indented definitions."""
+    elems = []
+    for term in terms:
+        elems.append(Paragraph(f"<b>{safe_xml(term)}</b>", S["body"]))
+    for d in defs:
+        style = ParagraphStyle(
+            "definition",
+            parent=S["body"],
+            leftIndent=S["body"].leftIndent + 20,
+        )
+        elems.append(Paragraph(safe_xml(d), style))
     elems.append(Spacer(1, 4))
     return elems
 
@@ -229,8 +271,19 @@ def make_image(img: dict, S: dict, text_width: float) -> list:
 def make_table(headers: list[str], rows: list[list[str]],
                col_widths_cm: list[float] | None,
                S: dict, C: dict, text_width: float,
-               caption: str | None = None) -> list:
-    """Data table with styled header and alternating row backgrounds."""
+               caption: str | None = None,
+               table_style: dict | None = None) -> list:
+    """Data table with styled header and alternating row backgrounds.
+
+    ``table_style`` keys (all optional):
+        header_bg  — header background color (default C["primary"])
+        stripe     — enable alternating row colors (default True)
+        stripe_a   — first stripe color (default colors.white)
+        stripe_b   — second stripe color (default C["light"])
+        grid       — enable grid lines (default True)
+        grid_color — grid line color (default "#DDDDDD")
+    """
+    ts = table_style or {}
 
     def _cell_text(cell):
         if cell is None:
@@ -257,22 +310,31 @@ def make_table(headers: list[str], rows: list[list[str]],
         total_len = sum(lens)
         col_w = [text_width * (l / total_len) for l in lens]
 
-    t = Table(
-        all_data,
-        colWidths=col_w,
-        repeatRows=1,
-        style=TableStyle([
-            ("BACKGROUND",    (0, 0), (-1, 0),  C["primary"]),
-            ("LINEBELOW",     (0, 0), (-1, 0),  2, C["accent"]),
-            ("ROWBACKGROUNDS",(0, 1), (-1, -1), [colors.white, C["light"]]),
-            ("GRID",          (0, 0), (-1, -1), 0.5, colors.HexColor("#DDDDDD")),
-            ("TOPPADDING",    (0, 0), (-1, -1), 6),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
-            ("LEFTPADDING",   (0, 0), (-1, -1), 8),
-            ("RIGHTPADDING",  (0, 0), (-1, -1), 8),
-            ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
-        ]),
-    )
+    tbl_style = [
+        ("TOPPADDING",    (0, 0), (-1, -1), 6),
+        ("BOTTOMPADDING", (0, 0), (-1, -1), 6),
+        ("LEFTPADDING",   (0, 0), (-1, -1), 8),
+        ("RIGHTPADDING",  (0, 0), (-1, -1), 8),
+        ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
+    ]
+
+    hdr_bg = ts.get("header_bg", C["primary"])
+    tbl_style.append(("BACKGROUND", (0, 0), (-1, 0),
+                      colors.HexColor(hdr_bg) if isinstance(hdr_bg, str) else hdr_bg))
+    tbl_style.append(("LINEBELOW", (0, 0), (-1, 0), 2, C["accent"]))
+
+    if ts.get("stripe", True):
+        stripe_a = ts.get("stripe_a", colors.white)
+        stripe_b = ts.get("stripe_b", C["light"])
+        tbl_style.append(("ROWBACKGROUNDS", (0, 1), (-1, -1), [stripe_a, stripe_b]))
+
+    if ts.get("grid", True):
+        gc = ts.get("grid_color", "#DDDDDD")
+        tbl_style.append(("GRID", (0, 0), (-1, -1), 0.5,
+                          colors.HexColor(gc) if isinstance(gc, str) else gc))
+
+    t = Table(all_data, colWidths=col_w, repeatRows=1,
+              style=TableStyle(tbl_style))
     elems = []
     if caption:
         elems.append(Paragraph(safe_xml(caption), S["image_caption"]))
@@ -355,9 +417,16 @@ def _render_blocks(blocks: list[dict], S: dict, C: dict, text_width: float,
             elems += make_sub_heading(block.get("level", 3),
                                       block.get("content", ""), S)
         elif t == "bullet":
-            elems += make_bullets(block.get("items", []), S)
+            elems += make_bullets(block.get("items", []), S,
+                                  levels=block.get("levels"))
+        elif t == "task_list":
+            elems += make_task_list(block.get("items", []), block.get("checked", []), S)
         elif t == "ordered":
-            elems += make_ordered_list(block.get("items", []), S)
+            elems += make_ordered_list(block.get("items", []), S,
+                                       levels=block.get("levels"))
+        elif t == "definition":
+            elems += make_definition_list(
+                block.get("terms", []), block.get("defs", []), S)
         elif t == "highlight":
             elems += make_highlight(block.get("content", ""), S, C, text_width)
         elif t == "code":

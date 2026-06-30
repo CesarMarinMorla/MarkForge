@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "markforge"
+version = "1.2.0"
+description = "Professional PDF generation from JSON content via ReportLab"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+keywords = ["pdf", "reportlab", "document-generation", "markdown"]
+authors = [{ name = "César" }]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Printing",
+    "Topic :: Text Processing :: Markup",
+]
+dependencies = [
+    "reportlab>=5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/cesar/markforge"
+
+[project.scripts]
+markforge = "markforge.core:main"
+markforge-convert = "markforge.convert:main"
+
+[tool.setuptools.packages.find]
+include = ["markforge*"]

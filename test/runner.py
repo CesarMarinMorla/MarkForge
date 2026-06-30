@@ -15,7 +15,7 @@ import base64
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-from markforge_convert import convert
+from markforge.convert import convert
 
 
 # ── PDF text extraction ──────────────────────────────────────────────────

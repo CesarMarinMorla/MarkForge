@@ -4,7 +4,8 @@ Reads a markdown file (Pandoc-style YAML frontmatter), converts it to the
 content dict expected by markforge.build_pdf(), and renders the PDF.
 
 Usage:
-    python markforge_convert.py file.md [output.pdf]
+    python -m markforge.convert file.md [output.pdf]
+    markforge-convert file.md [output.pdf]
 
 No AI, no agent — pure deterministic parsing.
 """
@@ -55,189 +56,185 @@ def inline_to_xml(text: str, accent: str = "#E94560",
     text = re.sub(r'(?<!\*)\*(?!\*)(.+?)(?<!\*)\*(?!\*)', r'<i>\1</i>', text)
     text = re.sub(r'(?<!_)_(?!_)(.+?)(?<!_)_(?!_)', r'<i>\1</i>', text)
 
-    # Inline code: `code` → monospace font span with rounded light gray
-    # background. Non-breaking spaces provide margin around code text.
+    # Inline code: `code` → monospace font span with light gray background
     _nbsp = '\u00a0'
-    text = re.sub(r'`([^`]+)`',
-                  rf'{_nbsp}<font face="{mono_font}" backcolor="#EDEDED">\1</font>{_nbsp}',
-                  text)
+    text = re.sub(
+        r'`([^`]+)`',
+        rf'{_nbsp}<font face="{mono_font}" backcolor="#EDEDED">\1</font>{_nbsp}',
+        text,
+    )
 
-    # Restore index term placeholders → <index item="term"/>
-    text = re.sub(r'\x00IDX:([^\x00]+)\x00', r'<index item="\1"/>', text)
+    # Restore index markers
+    text = text.replace(INDEX_MARKER, '<index item="')
+    text = text.replace('\x00', '"/>')
+
+    # Line breaks
+    text = text.replace("  \n", "<br/>")
 
     return text
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# YAML FRONTMATTER
+# FRONTMATTER PARSER
 # ─────────────────────────────────────────────────────────────────────────────
 
-def parse_frontmatter(lines: list[str]) -> tuple[dict, list[str]]:
+def parse_frontmatter(raw_lines: list[str]) -> tuple[dict, list[str]]:
     """
-    Parse YAML frontmatter (between --- delimiters) from the top of a
-    markdown file. Returns (meta_dict, body_lines).
+    Pandoc-style YAML frontmatter parser.
 
-    Handles Pandoc-style fields:
-      title, subtitle, author, date, toc, titlepage-rule-color, etc.
+    Returns (frontmatter_dict, body_lines).
     """
-    if not lines or lines[0].strip() != "---":
-        return {}, lines
+    frontmatter: dict[str, str] = {}
+    if not raw_lines:
+        return frontmatter, raw_lines
 
-    end = 1
-    while end < len(lines) and lines[end].strip() != "---":
-        end += 1
+    if raw_lines[0].strip() != "---":
+        return frontmatter, raw_lines
 
-    raw = "".join(lines[1:end])
-    body = lines[end + 1:] if end < len(lines) else []
+    end_idx = None
+    for i in range(1, len(raw_lines)):
+        if raw_lines[i].strip() == "---":
+            end_idx = i
+            break
 
-    meta = {}
-    # Simple YAML key:value parser (no nested, no arrays)
-    for m in re.finditer(r'^(\w[\w-]*)\s*:\s*(.+)$', raw, re.MULTILINE):
-        key = m.group(1)
-        val = m.group(2).strip().strip('"').strip("'")
-        meta[key] = val
+    if end_idx is None:
+        return frontmatter, raw_lines
 
-    return meta, body
+    for line in raw_lines[1:end_idx]:
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        m = re.match(r'^(\w[\w-]*)\s*:\s*(.*?)\s*$', line)
+        if m:
+            frontmatter[m.group(1)] = m.group(2)
+
+    body = raw_lines[end_idx + 1:]
+    return frontmatter, body
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# TABLE PARSING (pipe tables)
+# PIPE TABLE PARSER
 # ─────────────────────────────────────────────────────────────────────────────
 
-def parse_pipe_table(lines: list[str], start: int, accent: str,
-                     mono_font: str = "Courier") -> tuple[dict | None, int]:
+def parse_pipe_table(lines: list[str], start: int,
+                     accent: str) -> tuple[dict | None, int]:
     """
-    Try to parse a pipe table starting at lines[start].
-    Detects caption from line immediately before the table (Table: ...).
-    Returns (table_dict, next_line_index) or (None, start).
+    Parse a pipe table starting at ``lines[start]``.
+
+    Returns (table_dict, next_line_index) or (None, start) if not a table.
     """
-    if "|" not in lines[start]:
+    if start >= len(lines):
         return None, start
 
-    header_line = lines[start].strip()
-    if not header_line.startswith("|"):
-        return None, start
-
-    # Detect optional caption from line before table
+    # Check for optional caption: "Table: ..." on the line before
     caption = None
+    cap_start = start
     if start > 0:
-        prev = lines[start - 1].strip()
-        if prev and not prev.startswith(("|", "```", "#", ">", "-", "*")):
-            m = re.match(r'^[Tt]able:?\s*(.+)$', prev)
-            if m:
-                caption = m.group(1).strip()
-            elif not re.match(r'^(\d+[.)]\s+|[-*]\s+)$', prev):
-                caption = prev
+        cm = re.match(r'^Table:\s+(.+)$', lines[start - 1].strip())
+        if cm:
+            caption = cm.group(1)
+            cap_start = start
 
-    # Extract header cells
-    headers = [c.strip() for c in header_line.split("|") if c.strip()]
+    if not re.match(r'^\|', lines[start].strip()):
+        return None, start
+
+    # Raw header line (first non-empty after caption)
+    raw_header = lines[start].strip()
+    headers = [h.strip() for h in raw_header.split("|")[1:-1]]
+
     if not headers:
         return None, start
 
-    # Next line must be separator (|---|)
+    # Separator line
     if start + 1 >= len(lines):
         return None, start
+
     sep = lines[start + 1].strip()
-    if not re.match(r'^[\s|:-]+$', sep):
+    if not re.match(r'^\|[-:| ]+\|$', sep):
         return None, start
 
-    # Parse rows
+    # Determine alignment from separator line (not used currently)
+    # cols = sep.split("|")[1:-1]
+
+    # Data rows
     rows = []
     i = start + 2
-    while i < len(lines):
-        line = lines[i].strip()
-        if not line.startswith("|") or "|" not in line:
-            break
-        cells = [c.strip() for c in line.split("|") if c.strip()]
-        if not cells:
-            break
-        # Normalize cell count to headers
+    while i < len(lines) and re.match(r'^\|', lines[i].strip()):
+        cells = [
+            inline_to_xml(c.strip(), accent=accent)
+            for c in lines[i].split("|")[1:-1]
+        ]
+        # Pad or truncate to match header count
         while len(cells) < len(headers):
             cells.append("")
         cells = cells[:len(headers)]
-        rows.append([inline_to_xml(c, accent, mono_font) for c in cells])
+        rows.append(cells)
         i += 1
 
-    if not rows:
-        return None, start
+    # Calculate proportional column widths
+    lens = [max(len(h), 1) for h in headers]
+    total = sum(lens)
+    col_widths = [round(l / total, 3) for l in lens]
 
-    # Calculate col_widths proportional to header length
-    total = 17.0
-    header_lens = [len(h) for h in headers]
-    total_len = sum(header_lens) or 1
-    col_widths = [max(2.0, round(total * (l / total_len), 1)) for l in header_lens]
-    # Adjust last to make sum exactly total
-    diff = round(total - sum(col_widths), 1)
-    if col_widths:
-        col_widths[-1] = round(col_widths[-1] + diff, 1)
-
-    result = {"headers": headers, "rows": rows, "col_widths": col_widths}
+    result = {
+        "headers": headers,
+        "rows": rows,
+        "col_widths": col_widths,
+    }
     if caption:
         result["caption"] = caption
+
     return result, i
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# CODE BLOCK PARSING
-# ─────────────────────────────────────────────────────────────────────────────
-
-def parse_code_block(lines: list[str], start: int) -> tuple[str | None, int]:
-    """Parse a fenced code block (``` or indented with 4 spaces)."""
-    line = lines[start]
-    # Fenced: ``` ...
-    m = re.match(r'^```(\w*)\s*$', line)
-    if m:
-        lang = m.group(1)
-        end = start + 1
-        while end < len(lines) and not lines[end].strip().startswith("```"):
-            end += 1
-        code = "".join(lines[start + 1:end])
-        # Strip trailing newline
-        code = code.rstrip("\n")
-        # Remove leading blank lines
-        code = re.sub(r'^\n+', '', code)
-        return code, end + 1
-
-    return None, start
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# SECTION BUILDER
+# CONTENT BLOCK PARSER
 # ─────────────────────────────────────────────────────────────────────────────
 
 def _parse_content_blocks(lines: list[str], accent: str,
                           mono_font: str = "Courier") -> list[dict]:
-    """Parse raw markdown lines into an ordered list of content block dicts."""
-    blocks = []
+    """
+    Parse body lines into a list of content block dicts.
+
+    Block types: paragraph, sub_heading, highlight, code, table,
+    bullet, ordered, task_list, definition.
+    """
+    blocks: list[dict] = []
     i = 0
     while i < len(lines):
-        line = lines[i].strip()
+        line = lines[i]
 
-        if not line:
+        # Skip HRs
+        if re.match(r'^-{3,}\s*$', line.strip()):
             i += 1
             continue
 
-        if re.match(r'^---+$', line):
-            i += 1
-            continue
-
+        # Blockquotes → highlight
         if line.startswith(">"):
-            hl = re.sub(r'^>\s?', '', line)
-            j = i + 1
-            while j < len(lines) and lines[j].strip().startswith(">"):
-                hl += " " + re.sub(r'^>\s?', '', lines[j].strip())
-                j += 1
-            blocks.append({"type": "highlight",
-                           "content": inline_to_xml(hl, accent, mono_font)})
-            i = j
+            hl = re.sub(r'^>\s?', '', line.strip())
+            hl = inline_to_xml(hl, accent, mono_font)
+            blocks.append({"type": "highlight", "content": hl})
+            i += 1
             continue
 
-        code, next_i = parse_code_block(lines, i)
-        if code is not None:
-            blocks.append({"type": "code", "content": code})
-            i = next_i
+        # Code fences
+        if line.startswith("```"):
+            lang = line[3:].strip()
+            code_parts = []
+            i += 1
+            while i < len(lines) and not lines[i].startswith("```"):
+                code_parts.append(lines[i].rstrip("\n"))
+                i += 1
+            i += 1  # skip closing ```
+            code_text = "\n".join(code_parts)
+            blocks.append({
+                "type": "code",
+                "content": code_text,
+                "language": lang,
+            })
             continue
 
+        # Tables
         table, next_i = parse_pipe_table(lines, i, accent)
         if table is not None:
             blocks.append({"type": "table", **table})
@@ -254,24 +251,63 @@ def _parse_content_blocks(lines: list[str], accent: str,
             i += 1
             continue
 
+        if re.match(r'^[-*]\s+\[[ x]\]\s+', line):
+            task_items = []
+            checked = []
+            while i < len(lines) and re.match(r'^[-*]\s+\[[ x]\]\s+', lines[i].strip()):
+                m = re.match(r'^[-*]\s+\[([ x])\]\s+(.*)$', lines[i].strip())
+                if m:
+                    checked.append(m.group(1) == "x")
+                    task_items.append(inline_to_xml(m.group(2), accent, mono_font))
+                i += 1
+            blocks.append({"type": "task_list", "items": task_items, "checked": checked})
+            continue
+
         if re.match(r'^[-*]\s+', line):
             bullet_items = []
-            while i < len(lines) and re.match(r'^[-*]\s+', lines[i].strip()):
-                item = re.sub(r'^[-*]\s+', '', lines[i].strip())
+            levels = []
+            while i < len(lines) and re.match(r'^ *[-*]\s+', lines[i]):
+                raw = lines[i]
+                leading = len(raw) - len(raw.lstrip())
+                level = leading // 2
+                item = re.sub(r'^ *[-*]\s+', '', raw.strip())
                 item = inline_to_xml(item, accent, mono_font)
                 bullet_items.append(item)
+                levels.append(level)
                 i += 1
-            blocks.append({"type": "bullet", "items": bullet_items})
+            blocks.append({"type": "bullet", "items": bullet_items, "levels": levels})
             continue
 
         if re.match(r'^\d+[.)]\s+', line):
             ordered_items = []
-            while i < len(lines) and re.match(r'^\d+[.)]\s+', lines[i].strip()):
-                item = re.sub(r'^\d+[.)]\s+', '', lines[i].strip())
+            o_levels = []
+            while i < len(lines) and re.match(r'^ *\d+[.)]\s+', lines[i]):
+                raw = lines[i]
+                leading = len(raw) - len(raw.lstrip())
+                level = leading // 2
+                item = re.sub(r'^ *\d+[.)]\s+', '', raw.strip())
                 item = inline_to_xml(item, accent, mono_font)
                 ordered_items.append(item)
+                o_levels.append(level)
                 i += 1
-            blocks.append({"type": "ordered", "items": ordered_items})
+            blocks.append({"type": "ordered", "items": ordered_items, "levels": o_levels})
+            continue
+
+        # Definition list: term followed by : or ~ lines
+        if (i + 1 < len(lines) and lines[i + 1].strip()
+                and re.match(r'^[:~]\s+', lines[i + 1].strip())):
+            dterms = [inline_to_xml(line.strip(), accent, mono_font)]
+            ddefs = []
+            i += 1
+            while i < len(lines) and lines[i].strip():
+                nxt = lines[i].strip()
+                m = re.match(r'^[:~]\s+(.*)$', nxt)
+                if m:
+                    ddefs.append(inline_to_xml(m.group(1), accent, mono_font))
+                else:
+                    break
+                i += 1
+            blocks.append({"type": "definition", "terms": dterms, "defs": ddefs})
             continue
 
         para = line
@@ -477,6 +513,17 @@ def convert(md_path: str, output_path: str | None = None) -> str:
     if meta:
         content["meta"] = meta
 
+    # ── Table style ─────────────────────────────────────────────────────
+    table_style = {}
+    hdr_bg = frontmatter.get("table_header_bg")
+    if hdr_bg and re.match(r'^#[0-9A-Fa-f]{6}$', hdr_bg):
+        table_style["header_bg"] = hdr_bg
+    stripe = frontmatter.get("table_stripe")
+    if stripe is not None:
+        table_style["stripe"] = stripe.lower() in ("true", "yes", "1")
+    if table_style:
+        content["table_style"] = table_style
+
     # ── Build sections ──────────────────────────────────────────────────
     number_sections = frontmatter.get("number_sections", "").lower() in ("true", "yes", "1")
     content["sections"] = build_sections(
@@ -491,7 +538,7 @@ def convert(md_path: str, output_path: str | None = None) -> str:
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: python markforge_convert.py <file.md> [output.pdf]")
+        print("Usage: python -m markforge.convert <file.md> [output.pdf]")
         sys.exit(1)
 
     md_path = sys.argv[1]
