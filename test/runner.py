@@ -101,6 +101,23 @@ EXPECTED = {
         "Mixed Content in Section",
         "Docker",
     ],
+    "converter_features.md": [
+        "Converter Features",
+        "How To Use This Document",
+        "Task Lists",
+        "Unchecked: deploy to staging environment",
+        "Checked: run security scan on release branch",
+        "Nested Bullets",
+        "INNER load balancer pool",
+        "Nested Ordered",
+        "INNER assign pod CIDR",
+        "Definition Lists",
+        "YAML frontmatter",
+        "High-level PDF layout API",
+        "Markdown Images",
+        "Accent color fixture block",
+        "If the block above is missing",
+    ],
     "comprehensive.md": [
         "Table of Contents",
         "Index",
@@ -121,6 +138,66 @@ EXPECTED = {
         "Schema validation",
     ],
 }
+
+
+# Structural checks for features that are visible in the PDF but not plain text.
+
+STRUCTURAL = {
+    "converter_features.md": {
+        "min_images": 1,
+        "min_text_positions": 2,
+    },
+}
+
+
+def _read_pdf_bytes(pdf_path: str) -> bytes:
+    with open(pdf_path, "rb") as f:
+        return f.read()
+
+
+def _count_embedded_images(pdf_data: bytes) -> int:
+    return pdf_data.count(b"/Subtype /Image")
+
+
+def _count_distinct_text_x_positions(pdf_data: bytes) -> int:
+    """Count distinct horizontal layout positions (proxy for list indentation)."""
+    positions = set()
+    for stream in re.findall(rb"stream\r?\n(.+?)endstream", pdf_data, re.DOTALL):
+        try:
+            end_idx = stream.find(b"~>")
+            if end_idx < 0:
+                continue
+            decoded = base64.a85decode(stream[: end_idx + 2], adobe=True)
+            text = zlib.decompress(decoded).decode("latin-1", errors="ignore")
+        except Exception:
+            continue
+        for x in re.findall(r"1 0 0 1 (\d+(?:\.\d+)?) \d+(?:\.\d+)? cm", text):
+            positions.add(round(float(x), 1))
+    return len({p for p in positions if p >= 40.0})
+
+
+def _check_pdf_structure(pdf_path: str, rules: dict) -> list[str]:
+    data = _read_pdf_bytes(pdf_path)
+    failures = []
+
+    min_images = rules.get("min_images")
+    if min_images is not None:
+        count = _count_embedded_images(data)
+        if count < min_images:
+            failures.append(
+                f"Expected at least {min_images} embedded image(s), found {count}"
+            )
+
+    min_positions = rules.get("min_text_positions")
+    if min_positions is not None:
+        count = _count_distinct_text_x_positions(data)
+        if count < min_positions:
+            failures.append(
+                f"Expected at least {min_positions} distinct text x-positions "
+                f"(nested layout), found {count}"
+            )
+
+    return failures
 
 
 def _check_pdf(pdf_path: str, expected: list[str]) -> list[str]:
@@ -158,6 +235,7 @@ def main():
 
             expected = EXPECTED.get(md.name, [])
             failures = _check_pdf(str(pdf), expected) if expected else []
+            failures += _check_pdf_structure(str(pdf), STRUCTURAL.get(md.name, {}))
 
             if failures:
                 elapsed = time.perf_counter() - start

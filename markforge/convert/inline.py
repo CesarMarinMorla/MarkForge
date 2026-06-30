@@ -19,7 +19,7 @@ def inline_to_xml(text: str, accent: str = "#E94560",
     text = re.sub(r'&(?!(?:[a-zA-Z]+|#\d+|#x[0-9a-fA-F]+);)', _amp, text)
     text = text.replace("<", _lt).replace(">", _gt)
 
-    # Images: ![alt](path) -> just alt text (no image support from MD)
+    # Standalone images are parsed as blocks; inline images fall back to alt text.
     text = re.sub(r'!\[([^\]]*)\]\([^)]+\)', r'\1', text)
 
     # Links: [text](url) -> <font color="..."><u><a href="url">text</a></u></font>

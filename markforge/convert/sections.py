@@ -7,6 +7,7 @@ with typed blocks and backward-compatible fields (body, bullets, etc.).
 
 import re
 from collections import defaultdict
+from pathlib import Path
 
 from markforge.convert.blocks import parse_content_blocks
 from markforge.convert.inline import inline_to_xml
@@ -14,7 +15,8 @@ from markforge.convert.inline import inline_to_xml
 
 def build_sections(body_lines: list[str], accent: str,
                    mono_font: str = "Courier",
-                   number_sections: bool = False) -> list[dict]:
+                   number_sections: bool = False,
+                   base_dir: Path | None = None) -> list[dict]:
     """
     Convert parsed markdown body into a list of section dicts.
 
@@ -38,7 +40,8 @@ def build_sections(body_lines: list[str], accent: str,
     preamble_blocks = []
     if heading_positions:
         preamble_lines = body_lines[:heading_positions[0]]
-        preamble_blocks = parse_content_blocks(preamble_lines, accent, mono_font)
+        preamble_blocks = parse_content_blocks(
+            preamble_lines, accent, mono_font, base_dir=base_dir)
 
     sections = []
     for idx, pos in enumerate(heading_positions):
@@ -57,7 +60,8 @@ def build_sections(body_lines: list[str], accent: str,
         # Collect section body lines
         sec_lines = body_lines[pos + 1:end]
 
-        blocks = parse_content_blocks(sec_lines, accent, mono_font)
+        blocks = parse_content_blocks(
+            sec_lines, accent, mono_font, base_dir=base_dir)
 
         if number_sections:
             sub_counters = defaultdict(int)

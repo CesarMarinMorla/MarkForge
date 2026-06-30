@@ -2,22 +2,34 @@
 Block-level markdown parser.
 
 Parses body lines into typed content blocks: paragraph, sub_heading,
-highlight, code, table, bullet, ordered, task_list, definition, hr.
+highlight, code, table, bullet, ordered, task_list, definition, image, hr.
 """
 
 import re
+from pathlib import Path
 
 from markforge.convert.inline import inline_to_xml
 from markforge.convert.tables import parse_pipe_table
 
+_IMAGE_LINE = re.compile(r'^!\[([^\]]*)\]\(([^)]+)\)\s*$')
+
+
+def _resolve_image_path(path: str, base_dir: Path | None) -> str:
+    """Resolve a markdown image path relative to the source file directory."""
+    p = Path(path.strip())
+    if not p.is_absolute() and base_dir is not None:
+        p = base_dir / p
+    return str(p.resolve())
+
 
 def parse_content_blocks(lines: list[str], accent: str,
-                         mono_font: str = "Courier") -> list[dict]:
+                         mono_font: str = "Courier",
+                         base_dir: Path | None = None) -> list[dict]:
     """
     Parse body lines into a list of content block dicts.
 
     Block types: paragraph, sub_heading, highlight, code, table,
-    bullet, ordered, task_list, definition.
+    bullet, ordered, task_list, definition, image.
     """
     blocks: list[dict] = []
     i = 0
@@ -60,6 +72,17 @@ def parse_content_blocks(lines: list[str], accent: str,
         if table is not None:
             blocks.append({"type": "table", **table})
             i = next_i
+            continue
+
+        img_match = _IMAGE_LINE.match(line.strip())
+        if img_match:
+            alt, path = img_match.group(1), img_match.group(2)
+            blocks.append({
+                "type": "image",
+                "path": _resolve_image_path(path, base_dir),
+                "caption": alt.strip() or None,
+            })
+            i += 1
             continue
 
         sh = re.match(r'^(#{3,6})\s+', line)
@@ -137,10 +160,13 @@ def parse_content_blocks(lines: list[str], accent: str,
             nxt = lines[j].strip()
             if (nxt.startswith("|") or nxt.startswith("```")
                     or nxt.startswith(">")
+                    or _IMAGE_LINE.match(nxt)
                     or re.match(r'^#{3,6}\s+', nxt)
+                    or re.match(r'^[-*]\s+\[[ x]\]\s+', nxt)
                     or re.match(r'^[-*]\s+', nxt)
                     or re.match(r'^\d+[.)]\s+', nxt)
-                    or re.match(r'^-{3,}\s*$', nxt)):
+                    or re.match(r'^-{3,}\s*$', nxt)
+                    or re.match(r'^[:~]\s+', nxt)):
                 break
             para += " " + nxt
             j += 1

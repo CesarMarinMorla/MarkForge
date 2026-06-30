@@ -98,6 +98,7 @@ def convert(md_path: str, output_path: str | None = None) -> str:
     content["sections"] = build_sections(
         body_lines, theme.get("accent", "#E94560"), mono_font,
         number_sections=number_sections,
+        base_dir=md_path.parent,
     )
 
     # -- Render -------------------------------------------------------------

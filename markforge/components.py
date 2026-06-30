@@ -200,15 +200,24 @@ def make_ordered_list(items: list[str], S: dict,
                       levels: list[int] | None = None) -> list:
     """Ordered list with 1. 2. 3. prefix, optional nesting."""
     elems = []
+    counters: dict[int, int] = {}
+    prev_level = 0
     for idx, item in enumerate(items):
         level = levels[idx] if levels else 0
+        if level < prev_level:
+            for l in list(counters):
+                if l > level:
+                    del counters[l]
+        prev_level = level
+        counters[level] = counters.get(level, 0) + 1
+        num = counters[level]
         indent = level * 20
         style = ParagraphStyle(
             "nested_ordered",
             parent=S["bullet"],
             leftIndent=S["bullet"].leftIndent + indent,
         )
-        elems.append(Paragraph(f"<b>{idx + 1}.</b>&nbsp; {safe_xml(item)}", style))
+        elems.append(Paragraph(f"<b>{num}.</b>&nbsp; {safe_xml(item)}", style))
     elems.append(Spacer(1, 4))
     return elems
 
