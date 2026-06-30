@@ -302,13 +302,40 @@ def make_table(headers: list[str], rows: list[list[str]],
 
     all_data = [header_row] + data_rows
 
+    n = len(headers)
+    # Minimum width per column: leftPadding (8) + rightPadding (8) + some content space (20)
+    min_width = 36  # points
+
     if col_widths_cm:
-        col_w = [w * cm for w in col_widths_cm]
+        # Check if the widths are proportions (sum to ~1.0) or absolute cm values
+        sum_w = sum(col_widths_cm)
+        if abs(sum_w - 1.0) < 0.1:  # Proportional widths
+            col_w = [text_width * w for w in col_widths_cm]
+        else:  # Absolute cm values
+            col_w = [w * cm for w in col_widths_cm]
+
+        # Apply minimum width constraints
+        col_w = [max(w, min_width) for w in col_w]
+        # Scale down if we exceeded total width due to minimums
+        total_min = sum(col_w)
+        if total_min > text_width:
+            scale = text_width / total_min
+            col_w = [w * scale for w in col_w]
     else:
-        n = len(headers)
-        lens = [max(len(h), 1) for h in headers]
-        total_len = sum(lens)
-        col_w = [text_width * (l / total_len) for l in lens]
+        if n * min_width > text_width:
+            # If minimum widths exceed available space, use equal distribution
+            col_w = [text_width / n] * n
+        else:
+            # Use proportional sizing based on header length, but ensure minimum widths
+            lens = [max(len(h), 1) for h in headers]
+            total_len = sum(lens)
+            raw_widths = [text_width * (l / total_len) for l in lens]
+            col_w = [max(w, min_width) for w in raw_widths]
+            # Scale down if we exceeded total width due to minimums
+            total_min = sum(col_w)
+            if total_min > text_width:
+                scale = text_width / total_min
+                col_w = [w * scale for w in col_w]
 
     tbl_style = [
         ("TOPPADDING",    (0, 0), (-1, -1), 6),
