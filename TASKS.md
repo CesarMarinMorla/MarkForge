@@ -6,7 +6,8 @@ Prioridades: **P1** (core engine), **P2** (quality & packaging), **P3** (polish)
 
 ## P1 — Engine Features (markdown converter)
 
-- [ ] **Inline monospace in body** — `` `code` `` strips backticks but renders in body font. Wrap with `<tt>` or `<font face="mono">` to use the registered monospace font.
+- [x] **Inline monospace in body** — `` `code` `` strips backticks but renders in body font. Wrap with `<tt>` or `<font face="mono">` to use the registered monospace font.
+- [x] **Inline code formatting** — fenced code blocks as Preformatted, inline `` `code` `` with rounded gray background.
 - [ ] **Section numbering** — auto-generate `1.`, `1.1`, `1.2` from heading nesting (`##` → level 1, `###` → level 2). Configurable via frontmatter `number_sections: true`.
 - [ ] **Image rendering from markdown** — `![alt](path)` currently converts to alt text only. Pipe through `make_image()` flowable if path exists.
 - [x] **Handle `# ` level 1 headings** — treated as section boundary (same as `## `). Falls through to body text in sections.
@@ -33,9 +34,12 @@ Prioridades: **P1** (core engine), **P2** (quality & packaging), **P3** (polish)
 
 ## P2 — Testing & Quality
 
+- [x] **PDF content validation in runner** — decode PDF streams and check expected strings per test (TOC entries, index entries, body text). Replaces crash-only check.
+- [x] **Integration test** — full pipeline for every file in `test/`.
 - [ ] **Unit tests (pytest)** — core functions: `build_pdf`, `validate_content`, `register_user_fonts`, `build_styles`, `build_theme`, `inline_to_xml`, `build_sections`, `parse_pipe_table`, `parse_code_block`.
 - [ ] **Fixture PDF comparison** — generate expected PDFs, compare page count/metadata.
-- [ ] **Integration test** — full pipeline for every file in `test/`.
+- [ ] **`blocks` array validation in schema.py** — validate typed block objects inside sections, not just flat fields.
+- [ ] **`validate_content()` unit tests** — test with invalid inputs: missing title, empty sections, bad image paths, malformed JSON, etc.
 - [ ] **Property-based tests** — random content dicts with hypothesis.
 - [ ] **Type hints** — cover all public functions.
 - [ ] **Static analysis** — ruff linter + pyright type checker.
@@ -79,3 +83,4 @@ Prioridades: **P1** (core engine), **P2** (quality & packaging), **P3** (polish)
 | Date | Note |
 |---|---|
 | 2026-06-29 | Created. Repo at v1.2.0 after cleanup/rename session. |
+| 2026-06-30 | Runner validates PDF content; `#` headings as sections; TOC dots fix; index + TOC headings; preamble fix. |
