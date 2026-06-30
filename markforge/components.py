@@ -190,7 +190,7 @@ def make_task_list(items: list[str], checked: list[bool], S: dict) -> list:
     """Task list with checkbox markers."""
     elems = []
     for item, chk in zip(items, checked):
-        char = "&#x2611;" if chk else "&#x2610;"
+        char = "[x]" if chk else "[ ]"
         elems.append(Paragraph(f'{char} {safe_xml(item)}', S["bullet"]))
     elems.append(Spacer(1, 4))
     return elems
