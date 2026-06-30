@@ -136,7 +136,7 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
 
     if show_toc:
         toc = TableOfContents()
-        toc.dotsMinLevel = -1
+        toc.dotsMinLevel = 0
         toc.levelStyles = [
             ParagraphStyle(
                 "toc_level_1",
