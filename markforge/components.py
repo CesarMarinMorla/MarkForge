@@ -470,6 +470,9 @@ def _render_blocks(blocks: list[dict], S: dict, C: dict, text_width: float,
             )
         elif t == "image":
             elems += make_image(block, S, text_width)
+        elif t == "hr":
+            elems += [HRFlowable(width="100%", thickness=1, color=C["muted"],
+                                 spaceAfter=8, spaceBefore=8)]
         elif t == "note":
             elems += make_note(block.get("content", ""), S)
     return elems
