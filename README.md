@@ -386,15 +386,22 @@ markforge-convert test/comprehensive.md
 ```
 markforge/
 ├── markforge/
-│   ├── __init__.py      # Public API re-exports
-│   ├── core.py          # build_pdf(), CLI main()
-│   ├── schema.py        # Content validation
-│   ├── theme.py         # Theme building
-│   ├── fonts.py         # Font registration
-│   ├── chrome.py        # Page chrome (header/footer)
-│   ├── styles.py        # ParagraphStyle construction
-│   ├── components.py    # Flowable factories
-│   └── convert.py       # Markdown → JSON converter
+│   ├── __init__.py          # Public API re-exports
+│   ├── core.py              # build_pdf(), CLI main()
+│   ├── schema.py            # Content validation
+│   ├── theme.py             # Theme building
+│   ├── fonts.py             # Font registration
+│   ├── chrome.py            # Page chrome (header/footer)
+│   ├── styles.py            # ParagraphStyle construction
+│   ├── components.py        # Flowable factories
+│   └── convert/             # Markdown → JSON converter
+│       ├── __init__.py      # Subpackage re-exports
+│       ├── inline.py        # Inline markdown → XML
+│       ├── frontmatter.py   # YAML frontmatter parser
+│       ├── tables.py        # Pipe table parser
+│       ├── blocks.py        # Block-level markdown parser
+│       ├── sections.py      # Section builder
+│       └── cli.py           # CLI entry point, orchestration
 ├── test/
 │   ├── basic.md
 │   ├── formatting.md
