@@ -14,6 +14,7 @@ Refactor a package modular y Fase 1 de pulido.
   registrados en vez de Helvetica hardcoded.
 - **image_caption style**: agregado a `build_styles()` con el font itálico
   registrado en vez de `Helvetica-Oblique` hardcoded.
+- **Inline code formatting**: `make_code()` renders fenced code blocks as `Preformatted` with gray background; inline `` `code` `` spans use monospace font with rounded `roundRect` background via monkey-patched `_do_post_text`.
 - **Múltiples code blocks/tables en markforge_convert**: code blocks se unen con `\n\n`,
   tablas extra se renderizan como body text en vez de descartarse.
 - **Validación de rutas**: `validate_content()` chequea que existan archivos
@@ -53,6 +54,7 @@ Header/footer configurable content.
 - **Schema validation**: `validate_content()` checks the full JSON schema at
   build time and raises ValueError with ALL errors found (types, required fields,
   hex colors, table structure). File paths are NOT validated.
+- **Ordered lists**: `make_ordered_list()` renders numbered lists via `Paragraph` with numbered prefix, left indent, and proper spacing.
 - **markforge_convert.py**: Deterministic markdown-to-PDF converter. Parses Pandoc YAML
   frontmatter, converts inline formatting, pipe tables, fenced code blocks,
   bullet/ordered lists, and blockquotes to the engine's JSON schema. No AI
@@ -104,7 +106,7 @@ python -m markforge path/to/content.json output.pdf
 
 ### Limitaciones conocidas
 
-- Courier no soporta Unicode: usar solo ASCII para bloques de codigo (sin ├ ─ │ → ↓)
+- Courier no soporta Unicode: usar solo ASCII para bloques de codigo (sin ├ ─ │ → ↓) — resuelto en v1.2.0 (Menlo auto-detect)
 - `linkColor` en ParagraphStyle es ignorado por ReportLab 5.x: usar `<font color>` inline
-- Ordered lists no soportadas: simular con bullets manuales tipo `"1. item"`
-- Sin form fields, sin validacion estricta de schema (JSON malformado da errores de Python crudos)
+- Ordered lists no soportadas — resuelto en v1.1.0
+- Sin form fields — resuelto en v1.1.0 (schema validation)

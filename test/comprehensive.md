@@ -250,7 +250,7 @@ Supercalifragilisticexpialidocious antidisestablishmentism floccinaucinihilipili
 | Header/footer config | done | 1.1.0 | medium | Placeholder system |
 | Schema validation | done | 1.1.0 | high | Full error reporting |
 | System font detection | done | 1.2.0 | medium | Menlo auto-detect on macOS |
-| Inline code formatting | pending | 2.0.0 | low | Monospace inline style |
+| Inline code formatting | done | 1.2.0 | medium | Monospace inline style |
 | Section numbering | pending | 2.0.0 | low | Auto-generated |
 | Image alignment | pending | 2.0.0 | low | Left/center/right |
 | SVG support | pending | 2.0.0 | low | Vector graphics |
