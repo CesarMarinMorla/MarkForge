@@ -32,7 +32,7 @@ conversor determinista markdown → PDF. Sin LaTeX, sin Chrome, sin wkhtmltopdf.
 | `markforge/styles.py` | `build_styles()` — ParagraphStyles con colores y fonts |
 | `markforge/components.py` | `safe_xml()`, `make_*()`, `assemble_section()` |
 | `markforge/__main__.py` | `python -m markforge` entry point |
-| `markforge_convert.py` | Conversor markdown determinista (~410 líneas) |
+| `markforge_convert.py` | Conversor markdown determinista (~473 líneas) |
 | `test/runner.py` | Test runner — ejecuta todos los test/*.md |
 | `docs/CHANGELOG.md` | Historial de cambios |
 | `test/` | Suite de tests sintéticos (6 archivos) |
@@ -46,8 +46,8 @@ Solo `reportlab` (pip install reportlab).
 ### Core Engine (markforge/)
 
 - **Portada** con título, subtítulo, barra acento, tabla de metadatos
-- **TOC** opcional via `show_toc: true` (multiBuild two-pass)
-- **Index** opcional via `show_index: true` (SimpleIndex, <<term>> en md)
+- **TOC** opcional via `show_toc: true` (multiBuild two-pass). Incluye heading "Table of Contents", dotted leaders (`.`), separador HR al final
+- **Index** opcional via `show_index: true` (SimpleIndex, <<term>> en md). Incluye heading "Index", aparece en TOC
 - **Secciones** con heading + regla horizontal de color
 - **Body text** justificado, soporta `<b> <i> <br/> <a href> <sub> <super>`
 - **Bullets** con prefijo `•` y left indent
@@ -168,6 +168,7 @@ Uso: `python test/runner.py` para todos o `python markforge_convert.py test/<fil
 | `make_code(code_text, lang, C, text_width, mono_font)` | `components.py` | Code block Preformatted |
 | `make_note(text, S)` | `components.py` | Nota italic muted |
 | `make_index(F, C, text_width)` | `components.py` | Index alfabético SimpleIndex |
+| `_parse_content_blocks(lines, accent, mono_font)` | `markforge_convert.py` | Parsea lines markdown → blocks dict |
 | `assemble_section(section, S, C, text_width, toc, mono_font)` | `components.py` | Arma una sección completa |
 | `build_pdf(content, output_path)` | `core.py` | Entry point principal |
 | `main()` | `core.py` | CLI |
@@ -180,9 +181,10 @@ Uso: `python test/runner.py` para todos o `python markforge_convert.py test/<fil
 4. **Link coloring**: ReportLab 5.x ignora `linkColor`. Solución inline `<font color><u><a href>`.
 5. **multiBuild two-pass**: TOC requiere multiBuild; callbacks de página corren dos veces.
 6. **KeepTogether**: Heading + primer elemento juntos. Si el primero es muy alto, ReportLab lo parte igual.
-7. **System font detection**: `detect_system_mono()` en macOS registra Menlo automáticamente para cubrir Unicode.
-8. **topMargin dinámico**: Se reduce a 1.0 cm si `header.show=false`.
-9. **inline_to_xml ordering**: `***text***` se procesa antes que `**text**`/`*text*` para evitar tag mismatch.
+7. **_tocInfo propagation**: `_tocInfo` se setea en el heading `Paragraph`, pero `assemble_section` lo envuelve en `KeepTogether`. `afterFlowable` solo ve el `KeepTogether`, así que `_tocInfo` debe propagarse explícitamente al wrapper. Caso contrario el TOC nunca recibe entradas.
+8. **System font detection**: `detect_system_mono()` en macOS registra Menlo automáticamente para cubrir Unicode.
+9. **topMargin dinámico**: Se reduce a 1.0 cm si `header.show=false`.
+10. **inline_to_xml ordering**: `***text***` se procesa antes que `**text**`/`*text*` para evitar tag mismatch.
 
 ## Pitfalls Conocidos
 
@@ -195,6 +197,9 @@ Uso: `python test/runner.py` para todos o `python markforge_convert.py test/<fil
 - Sub-headings (`###`-`######`) van como bold en body, no como secciones separadas.
 - Courier es el último recurso si `detect_system_mono()` falla (no cubre Unicode).
 - Index requiere `canvasmaker` custom en `multiBuild` para registrar callbacks de `<index item="term"/>`.
+- El TOC heading "Table of Contents" NO tiene `_tocInfo` (evitar referencia circular). El Index heading sí tiene `_tocInfo` y aparece en el TOC.
+- `dotsMinLevel` del TOC debe coincidir con el level de `_tocInfo` (ambos a 0) para que los dotted leaders se rendericen.
+- Preamble content (antes del primer `## heading`) era silenciosamente descartado. Ahora `_parse_content_blocks()` lo procesa y lo antepone a la primera sección.
 - El monstruo original `pdf_engine.py` vive en git: `git show d62b08d^:pdf_engine.py`
 
 ## Convenciones
