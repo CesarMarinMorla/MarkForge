@@ -228,7 +228,8 @@ def make_image(img: dict, S: dict, text_width: float) -> list:
 
 def make_table(headers: list[str], rows: list[list[str]],
                col_widths_cm: list[float] | None,
-               S: dict, C: dict, text_width: float) -> list:
+               S: dict, C: dict, text_width: float,
+               caption: str | None = None) -> list:
     """Data table with styled header and alternating row backgrounds."""
 
     def _cell_text(cell):
@@ -272,7 +273,11 @@ def make_table(headers: list[str], rows: list[list[str]],
             ("VALIGN",        (0, 0), (-1, -1), "MIDDLE"),
         ]),
     )
-    return [t, Spacer(1, 8)]
+    elems = []
+    if caption:
+        elems.append(Paragraph(safe_xml(caption), S["image_caption"]))
+    elems += [t, Spacer(1, 8)]
+    return elems
 
 
 def make_code(code_text: str, language: str, C: dict, text_width: float,
@@ -365,6 +370,7 @@ def _render_blocks(blocks: list[dict], S: dict, C: dict, text_width: float,
                 block.get("rows", []),
                 block.get("col_widths"),
                 S, C, text_width,
+                caption=block.get("caption"),
             )
         elif t == "image":
             elems += make_image(block, S, text_width)
@@ -417,6 +423,7 @@ def assemble_section(section: dict, S: dict, C: dict, text_width: float,
                 tbl.get("rows", []),
                 tbl.get("col_widths"),
                 S, C, text_width,
+                caption=tbl.get("caption"),
             )
         if note:
             body_elems += make_note(note, S)

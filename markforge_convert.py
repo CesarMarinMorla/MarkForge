@@ -11,6 +11,7 @@ No AI, no agent — pure deterministic parsing.
 
 import re
 import sys
+from collections import defaultdict
 from pathlib import Path
 
 from markforge import build_pdf
@@ -107,6 +108,7 @@ def parse_pipe_table(lines: list[str], start: int, accent: str,
                      mono_font: str = "Courier") -> tuple[dict | None, int]:
     """
     Try to parse a pipe table starting at lines[start].
+    Detects caption from line immediately before the table (Table: ...).
     Returns (table_dict, next_line_index) or (None, start).
     """
     if "|" not in lines[start]:
@@ -115,6 +117,17 @@ def parse_pipe_table(lines: list[str], start: int, accent: str,
     header_line = lines[start].strip()
     if not header_line.startswith("|"):
         return None, start
+
+    # Detect optional caption from line before table
+    caption = None
+    if start > 0:
+        prev = lines[start - 1].strip()
+        if prev and not prev.startswith(("|", "```", "#", ">", "-", "*")):
+            m = re.match(r'^[Tt]able:?\s*(.+)$', prev)
+            if m:
+                caption = m.group(1).strip()
+            elif not re.match(r'^(\d+[.)]\s+|[-*]\s+)$', prev):
+                caption = prev
 
     # Extract header cells
     headers = [c.strip() for c in header_line.split("|") if c.strip()]
@@ -158,7 +171,10 @@ def parse_pipe_table(lines: list[str], start: int, accent: str,
     if col_widths:
         col_widths[-1] = round(col_widths[-1] + diff, 1)
 
-    return {"headers": headers, "rows": rows, "col_widths": col_widths}, i
+    result = {"headers": headers, "rows": rows, "col_widths": col_widths}
+    if caption:
+        result["caption"] = caption
+    return result, i
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -279,7 +295,8 @@ def _parse_content_blocks(lines: list[str], accent: str,
 
 
 def build_sections(body_lines: list[str], accent: str,
-                   mono_font: str = "Courier") -> list[dict]:
+                   mono_font: str = "Courier",
+                   number_sections: bool = False) -> list[dict]:
     """
     Convert parsed markdown body into a list of section dicts.
 
@@ -303,9 +320,13 @@ def build_sections(body_lines: list[str], accent: str,
 
     sections = []
     for idx, pos in enumerate(heading_positions):
+        sec_num = idx + 1
+
         # Extract heading
         raw_heading = body_lines[pos]
         heading = re.sub(r'^#{1,2}\s+', '', raw_heading).strip()
+        if number_sections:
+            heading = f"{sec_num}. {heading}"
         heading = inline_to_xml(heading, accent, mono_font)
 
         # Determine end of this section
@@ -315,6 +336,19 @@ def build_sections(body_lines: list[str], accent: str,
         sec_lines = body_lines[pos + 1:end]
 
         blocks = _parse_content_blocks(sec_lines, accent, mono_font)
+
+        if number_sections:
+            sub_counters = defaultdict(int)
+            for block in blocks:
+                if block["type"] == "sub_heading":
+                    level = block["level"]
+                    sub_counters[level] += 1
+                    for l in range(level + 1, 7):
+                        sub_counters[l] = 0
+                    parts = [str(sec_num)]
+                    for l in range(3, level + 1):
+                        parts.append(str(sub_counters[l]))
+                    block["content"] = f"{'.'.join(parts)} {block['content']}"
 
         if idx == 0 and preamble_blocks:
             blocks = preamble_blocks + blocks
@@ -444,8 +478,10 @@ def convert(md_path: str, output_path: str | None = None) -> str:
         content["meta"] = meta
 
     # ── Build sections ──────────────────────────────────────────────────
+    number_sections = frontmatter.get("number_sections", "").lower() in ("true", "yes", "1")
     content["sections"] = build_sections(
         body_lines, theme.get("accent", "#E94560"), mono_font,
+        number_sections=number_sections,
     )
 
     # ── Render ──────────────────────────────────────────────────────────
