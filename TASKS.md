@@ -9,7 +9,7 @@ Prioridades: **P1** (core engine), **P2** (quality & packaging), **P3** (polish)
 - [ ] **Inline monospace in body** — `` `code` `` strips backticks but renders in body font. Wrap with `<tt>` or `<font face="mono">` to use the registered monospace font.
 - [ ] **Section numbering** — auto-generate `1.`, `1.1`, `1.2` from heading nesting (`##` → level 1, `###` → level 2). Configurable via frontmatter `number_sections: true`.
 - [ ] **Image rendering from markdown** — `![alt](path)` currently converts to alt text only. Pipe through `make_image()` flowable if path exists.
-- [ ] **Handle `# ` level 1 headings** — fall through as body text. Could map to `title` or render as document-level heading.
+- [x] **Handle `# ` level 1 headings** — treated as section boundary (same as `## `). Falls through to body text in sections.
 - [ ] **Task lists** — `- [ ]` / `- [x]` syntax rendered as checkboxes in PDF.
 - [ ] **Nested lists** — sub-bullets with indentation (multi-level bullets and ordered lists).
 - [ ] **Multiple blockquotes per section** — currently only the first `>` renders as `highlight`.

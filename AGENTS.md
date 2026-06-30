@@ -78,6 +78,7 @@ Solo `reportlab` (pip install reportlab).
 - Ordered lists (`1. `) → `ordered_list` array
 - Blockquotes (`> `) → `highlight`
 - Horizontal rules (`---`) → ignoradas
+- `#`/`##` headings → section boundaries (creates new section)
 - Sub-headings (`###`-`######`) → bold en body text
 - Index terms (`<<term>>`) → `<index item="term"/>` para índice alfabético
 

@@ -49,6 +49,8 @@ EXPECTED = {
     "basic.md": [
         "Table of Contents",
         "Introduction",
+        "Top-Level Heading",
+        "Level 1 headings",
         "Body Content",
         "Conclusion",
         "Lorem ipsum dolor sit amet",

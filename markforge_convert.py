@@ -283,16 +283,16 @@ def build_sections(body_lines: list[str], accent: str,
     """
     Convert parsed markdown body into a list of section dicts.
 
-    Splits on "## " headings. Produces an ordered ``blocks`` list within
-    each section preserving the original line order. Also fills backward-
-    compatible fields (``body``, ``bullets``, etc.) derived from blocks.
-    Sub-headings (``###`` through ``######``) become block type ``sub_heading``
-    with a numeric ``level``.
+    Splits on "# " and "## " headings. Produces an ordered ``blocks`` list
+    within each section preserving the original line order. Also fills
+    backward-compatible fields (``body``, ``bullets``, etc.) derived from
+    blocks. Sub-headings (``###`` through ``######``) become block type
+    ``sub_heading`` with a numeric ``level``.
     """
     # Find all heading positions
     heading_positions = []
     for i, line in enumerate(body_lines):
-        if re.match(r'^##\s+', line):
+        if re.match(r'^#{1,2}\s+', line):
             heading_positions.append(i)
 
     # Parse preamble (content before first heading) into blocks
@@ -305,7 +305,7 @@ def build_sections(body_lines: list[str], accent: str,
     for idx, pos in enumerate(heading_positions):
         # Extract heading
         raw_heading = body_lines[pos]
-        heading = re.sub(r'^##+\s+', '', raw_heading).strip()
+        heading = re.sub(r'^#{1,2}\s+', '', raw_heading).strip()
         heading = inline_to_xml(heading, accent, mono_font)
 
         # Determine end of this section
