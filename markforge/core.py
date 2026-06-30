@@ -14,6 +14,7 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
 from reportlab.platypus import (
+    HRFlowable,
     Spacer,
     SimpleDocTemplate,
 )
@@ -135,6 +136,7 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
 
     if show_toc:
         toc = TableOfContents()
+        toc.dotsMinLevel = -1
         toc.levelStyles = [
             ParagraphStyle(
                 "toc_level_1",
@@ -146,6 +148,8 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
             ),
         ]
         story.append(toc)
+        story.append(HRFlowable(width="100%", thickness=1, color=C["muted"],
+                                spaceAfter=12, spaceBefore=0))
         story.append(Spacer(1, 12))
 
     mono_font = F["mono"][0]

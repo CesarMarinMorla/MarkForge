@@ -189,6 +189,95 @@ def parse_code_block(lines: list[str], start: int) -> tuple[str | None, int]:
 # SECTION BUILDER
 # ─────────────────────────────────────────────────────────────────────────────
 
+def _parse_content_blocks(lines: list[str], accent: str,
+                          mono_font: str = "Courier") -> list[dict]:
+    """Parse raw markdown lines into an ordered list of content block dicts."""
+    blocks = []
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+
+        if not line:
+            i += 1
+            continue
+
+        if re.match(r'^---+$', line):
+            i += 1
+            continue
+
+        if line.startswith(">"):
+            hl = re.sub(r'^>\s?', '', line)
+            j = i + 1
+            while j < len(lines) and lines[j].strip().startswith(">"):
+                hl += " " + re.sub(r'^>\s?', '', lines[j].strip())
+                j += 1
+            blocks.append({"type": "highlight",
+                           "content": inline_to_xml(hl, accent, mono_font)})
+            i = j
+            continue
+
+        code, next_i = parse_code_block(lines, i)
+        if code is not None:
+            blocks.append({"type": "code", "content": code})
+            i = next_i
+            continue
+
+        table, next_i = parse_pipe_table(lines, i, accent)
+        if table is not None:
+            blocks.append({"type": "table", **table})
+            i = next_i
+            continue
+
+        sh = re.match(r'^(#{3,6})\s+', line)
+        if sh:
+            level = len(sh.group(1))
+            sub = re.sub(r'^#{3,6}\s+', '', line)
+            blocks.append({"type": "sub_heading",
+                           "level": level,
+                           "content": inline_to_xml(sub, accent, mono_font)})
+            i += 1
+            continue
+
+        if re.match(r'^[-*]\s+', line):
+            bullet_items = []
+            while i < len(lines) and re.match(r'^[-*]\s+', lines[i].strip()):
+                item = re.sub(r'^[-*]\s+', '', lines[i].strip())
+                item = inline_to_xml(item, accent, mono_font)
+                bullet_items.append(item)
+                i += 1
+            blocks.append({"type": "bullet", "items": bullet_items})
+            continue
+
+        if re.match(r'^\d+[.)]\s+', line):
+            ordered_items = []
+            while i < len(lines) and re.match(r'^\d+[.)]\s+', lines[i].strip()):
+                item = re.sub(r'^\d+[.)]\s+', '', lines[i].strip())
+                item = inline_to_xml(item, accent, mono_font)
+                ordered_items.append(item)
+                i += 1
+            blocks.append({"type": "ordered", "items": ordered_items})
+            continue
+
+        para = line
+        j = i + 1
+        while j < len(lines) and lines[j].strip():
+            nxt = lines[j].strip()
+            if (nxt.startswith("|") or nxt.startswith("```")
+                    or nxt.startswith(">")
+                    or re.match(r'^#{3,6}\s+', nxt)
+                    or re.match(r'^[-*]\s+', nxt)
+                    or re.match(r'^\d+[.)]\s+', nxt)):
+                break
+            para += " " + nxt
+            j += 1
+
+        blocks.append({"type": "paragraph",
+                       "content": inline_to_xml(para, accent, mono_font)})
+        i = j
+
+    return blocks
+
+
 def build_sections(body_lines: list[str], accent: str,
                    mono_font: str = "Courier") -> list[dict]:
     """
@@ -206,6 +295,12 @@ def build_sections(body_lines: list[str], accent: str,
         if re.match(r'^##\s+', line):
             heading_positions.append(i)
 
+    # Parse preamble (content before first heading) into blocks
+    preamble_blocks = []
+    if heading_positions:
+        preamble_lines = body_lines[:heading_positions[0]]
+        preamble_blocks = _parse_content_blocks(preamble_lines, accent, mono_font)
+
     sections = []
     for idx, pos in enumerate(heading_positions):
         # Extract heading
@@ -219,99 +314,10 @@ def build_sections(body_lines: list[str], accent: str,
         # Collect section body lines
         sec_lines = body_lines[pos + 1:end]
 
-        # Ordered list of content blocks (preserves markdown order)
-        blocks = []
+        blocks = _parse_content_blocks(sec_lines, accent, mono_font)
 
-        i = 0
-        while i < len(sec_lines):
-            line = sec_lines[i].strip()
-
-            # Skip empty lines
-            if not line:
-                i += 1
-                continue
-
-            # Horizontal rule
-            if re.match(r'^---+$', line):
-                i += 1
-                continue
-
-            # Blockquote → highlight
-            if line.startswith(">"):
-                hl = re.sub(r'^>\s?', '', line)
-                j = i + 1
-                while j < len(sec_lines) and sec_lines[j].strip().startswith(">"):
-                    hl += " " + re.sub(r'^>\s?', '', sec_lines[j].strip())
-                    j += 1
-                blocks.append({"type": "highlight",
-                               "content": inline_to_xml(hl, accent, mono_font)})
-                i = j
-                continue
-
-            # Code block (fenced)
-            code, next_i = parse_code_block(sec_lines, i)
-            if code is not None:
-                blocks.append({"type": "code", "content": code})
-                i = next_i
-                continue
-
-            # Table
-            table, next_i = parse_pipe_table(sec_lines, i, accent)
-            if table is not None:
-                blocks.append({"type": "table", **table})
-                i = next_i
-                continue
-
-            # Sub-heading (###, ####, #####, ######)
-            sh = re.match(r'^(#{3,6})\s+', line)
-            if sh:
-                level = len(sh.group(1))
-                sub = re.sub(r'^#{3,6}\s+', '', line)
-                blocks.append({"type": "sub_heading",
-                               "level": level,
-                               "content": inline_to_xml(sub, accent, mono_font)})
-                i += 1
-                continue
-
-            # Bullet list: starts with "- " or "* "
-            if re.match(r'^[-*]\s+', line):
-                bullet_items = []
-                while i < len(sec_lines) and re.match(r'^[-*]\s+', sec_lines[i].strip()):
-                    item = re.sub(r'^[-*]\s+', '', sec_lines[i].strip())
-                    item = inline_to_xml(item, accent, mono_font)
-                    bullet_items.append(item)
-                    i += 1
-                blocks.append({"type": "bullet", "items": bullet_items})
-                continue
-
-            # Ordered list: starts with "1. " or "1) "
-            if re.match(r'^\d+[.)]\s+', line):
-                ordered_items = []
-                while i < len(sec_lines) and re.match(r'^\d+[.)]\s+', sec_lines[i].strip()):
-                    item = re.sub(r'^\d+[.)]\s+', '', sec_lines[i].strip())
-                    item = inline_to_xml(item, accent, mono_font)
-                    ordered_items.append(item)
-                    i += 1
-                blocks.append({"type": "ordered", "items": ordered_items})
-                continue
-
-            # Regular paragraph
-            para = line
-            j = i + 1
-            while j < len(sec_lines) and sec_lines[j].strip():
-                nxt = sec_lines[j].strip()
-                if (nxt.startswith("|") or nxt.startswith("```")
-                        or nxt.startswith(">")
-                        or re.match(r'^#{3,6}\s+', nxt)
-                        or re.match(r'^[-*]\s+', nxt)
-                        or re.match(r'^\d+[.)]\s+', nxt)):
-                    break
-                para += " " + nxt
-                j += 1
-
-            blocks.append({"type": "paragraph",
-                           "content": inline_to_xml(para, accent, mono_font)})
-            i = j
+        if idx == 0 and preamble_blocks:
+            blocks = preamble_blocks + blocks
 
         # Build section dict with blocks + backward-compat fields
         sec = {"heading": heading, "blocks": blocks}

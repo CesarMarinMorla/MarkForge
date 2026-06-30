@@ -425,4 +425,10 @@ def assemble_section(section: dict, S: dict, C: dict, text_width: float,
         return header_elems
 
     anchored = KeepTogether(header_elems + [body_elems[0]])
+    # Propagate _tocInfo from heading Paragraph to KeepTogether wrapper
+    # so afterFlowable can notify the TOC.
+    for elem in header_elems:
+        if hasattr(elem, '_tocInfo'):
+            anchored._tocInfo = elem._tocInfo
+            break
     return [anchored] + body_elems[1:]
