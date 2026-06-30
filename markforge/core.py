@@ -175,10 +175,14 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
 
 def main():
     """CLI entry point."""
-    if len(sys.argv) < 2:
-        print("Usage: python -m markforge '<json_string>'")
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
+        print("Usage: markforge <content.json> [output.pdf]")
         print("       python -m markforge path/to/content.json")
-        sys.exit(1)
+        print()
+        print("Arguments:")
+        print("  content.json    Path to JSON content file or JSON string")
+        print("  output.pdf      Optional output PDF path (defaults to content.json basename)")
+        sys.exit(0 if len(sys.argv) >= 2 and sys.argv[1] in ("-h", "--help") else 1)
 
     arg = sys.argv[1]
 

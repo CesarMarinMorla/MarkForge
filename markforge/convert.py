@@ -537,9 +537,14 @@ def convert(md_path: str, output_path: str | None = None) -> str:
 
 
 def main():
-    if len(sys.argv) < 2:
-        print("Usage: python -m markforge.convert <file.md> [output.pdf]")
-        sys.exit(1)
+    if len(sys.argv) < 2 or sys.argv[1] in ("-h", "--help"):
+        print("Usage: markforge-convert <file.md> [output.pdf]")
+        print("       python -m markforge.convert <file.md> [output.pdf]")
+        print()
+        print("Arguments:")
+        print("  file.md      Path to markdown file with YAML frontmatter")
+        print("  output.pdf   Optional output PDF path (defaults to file.pdf)")
+        sys.exit(0 if len(sys.argv) >= 2 and sys.argv[1] in ("-h", "--help") else 1)
 
     md_path = sys.argv[1]
     output_path = sys.argv[2] if len(sys.argv) > 2 else None

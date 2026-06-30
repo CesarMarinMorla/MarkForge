@@ -8,13 +8,11 @@ version = "1.2.0"
 description = "Professional PDF generation from JSON content via ReportLab"
 readme = "README.md"
 requires-python = ">=3.10"
-license = { text = "MIT" }
 keywords = ["pdf", "reportlab", "document-generation", "markdown"]
 authors = [{ name = "César" }]
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
@@ -28,7 +26,9 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/cesar/markforge"
+Homepage = "https://github.com/CesarMarinMorla/MarkForge"
+Repository = "https://github.com/CesarMarinMorla/MarkForge"
+Issues = "https://github.com/CesarMarinMorla/MarkForge/issues"
 
 [project.scripts]
 markforge = "markforge.core:main"
@@ -36,3 +36,33 @@ markforge-convert = "markforge.convert:main"
 
 [tool.setuptools.packages.find]
 include = ["markforge*"]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "ruff>=0.1.0",
+    "pyright>=1.1.0",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["test"]
+python_files = ["test_*.py", "*_test.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "UP"]
+ignore = []
+
+[tool.ruff.lint.isort]
+known-first-party = ["markforge"]
+
+[tool.pyright]
+include = ["markforge"]
+exclude = [".venv", "test"]
+pythonVersion = "3.10"
+typeCheckingMode = "basic"
