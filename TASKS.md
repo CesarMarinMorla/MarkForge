@@ -9,12 +9,12 @@ Prioridades: **P1** (core engine), **P2** (quality & packaging), **P3** (polish)
 - [x] **Inline monospace in body** — `` `code` `` strips backticks but renders in body font. Wrap with `<tt>` or `<font face="mono">` to use the registered monospace font.
 - [x] **Inline code formatting** — fenced code blocks as Preformatted, inline `` `code` `` with rounded gray background.
 - [x] **Section numbering** — auto-generate `1.`, `1.1`, `1.2` from heading nesting (`##` → level 1, `###` → level 2). Configurable via frontmatter `number_sections: true`.
-- [ ] **Image rendering from markdown** — `![alt](path)` currently converts to alt text only. Pipe through `make_image()` flowable if path exists.
+- [x] **Image rendering from markdown** — `![alt](path)` parses as image block with path resolution relative to source file.
 - [x] **Handle `# ` level 1 headings** — treated as section boundary (same as `## `). Falls through to body text in sections.
-- [ ] **Task lists** — `- [ ]` / `- [x]` syntax rendered as checkboxes in PDF.
-- [ ] **Nested lists** — sub-bullets with indentation (multi-level bullets and ordered lists).
+- [x] **Task lists** — `- [ ]` / `- [x]` syntax rendered as `[ ]` / `[x]` ASCII checkboxes in PDF.
+- [x] **Nested lists** — sub-bullets with indentation (multi-level bullets and ordered lists).
 - [x] **Multiple blockquotes per section** — already works via `blocks` path (`_render_blocks`).
-- [ ] **Definition lists** — `term\n: definition` Pandoc syntax.
+- [x] **Definition lists** — `term\n: definition` Pandoc syntax.
 
 ## P1 — Engine Features (rendering)
 
@@ -80,7 +80,8 @@ Prioridades: **P1** (core engine), **P2** (quality & packaging), **P3** (polish)
 
 ## Changelog
 
-| Date | Note |
-|---|---|
-| 2026-06-29 | Created. Repo at v1.2.0 after cleanup/rename session. |
-| 2026-06-30 | Runner validates PDF content; `#` headings as sections; TOC dots fix; index + TOC headings; preamble fix. |
+| Date       | Note                                                                                                                                          |
+| ---------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| 2026-06-29 | Created. Repo at v1.2.0 after cleanup/rename session.                                                                                         |
+| 2026-06-30 | Runner validates PDF content; `#` headings as sections; TOC dots fix; index + TOC headings; preamble fix.                                     |
+| 2026-06-30 | Markdown image support with path resolution; task lists with ASCII checkboxes; nested lists; definition lists; test runner structural checks. |
