@@ -15,6 +15,7 @@ from reportlab.lib.units import cm
 from reportlab.pdfgen import canvas
 from reportlab.platypus import (
     HRFlowable,
+    Paragraph,
     Spacer,
     SimpleDocTemplate,
 )
@@ -135,6 +136,7 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
         )
 
     if show_toc:
+        story.append(Paragraph("Table of Contents", S["section_heading"]))
         toc = TableOfContents()
         toc.dotsMinLevel = 0
         toc.levelStyles = [
@@ -158,6 +160,9 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
 
     canvasmaker = canvas.Canvas
     if show_index:
+        idx_heading = Paragraph("Index", S["section_heading"])
+        idx_heading._tocInfo = (0, "Index")
+        story.append(idx_heading)
         idx_elems = make_index(F, C, text_width)
         story += idx_elems
         canvasmaker = idx_elems[1].getCanvasMaker()
