@@ -47,13 +47,15 @@ Solo `reportlab` (pip install reportlab).
 
 - **Portada** con título, subtítulo, barra acento, tabla de metadatos
 - **TOC** opcional via `show_toc: true` (multiBuild two-pass)
+- **Index** opcional via `show_index: true` (SimpleIndex, <<term>> en md)
 - **Secciones** con heading + regla horizontal de color
 - **Body text** justificado, soporta `<b> <i> <br/> <a href> <sub> <super>`
 - **Bullets** con prefijo `•` y left indent
 - **Ordered lists** con prefijo `1. 2. 3.`
 - **Highlight boxes** (call-out con borde izquierdo de color)
 - **Tablas** con header repetido, filas alternadas, grid, col_widths proporcionales
-- **Code blocks** (Preformatted, fondo gris, preserva indentación)
+- **Inline code blocks** (Preformatted, fondo gris, preserva indentación)
+- **Inline code spans** (`...`) con fondo redondeado gris claro, fuente monospace, pad=1.5 horizontal, vpad=0.5 vertical
 - **Imágenes** embedded con caption opcional
 - **Watermark** diagonal semi-transparente en todas las páginas
 - **Page break** forzado por sección (`page_break: true`)
@@ -77,6 +79,7 @@ Solo `reportlab` (pip install reportlab).
 - Blockquotes (`> `) → `highlight`
 - Horizontal rules (`---`) → ignoradas
 - Sub-headings (`###`-`######`) → bold en body text
+- Index terms (`<<term>>`) → `<index item="term"/>` para índice alfabético
 
 ## Test Suite
 
@@ -100,7 +103,9 @@ Uso: `python test/runner.py` para todos o `python markforge_convert.py test/<fil
   "output":      "string",
   "page_size":   "A4 | Letter | Legal",
   "orientation": "portrait | landscape",
-  "show_toc":    true,
+  "show_toc":     true,
+  "show_index":   true,
+  "show_cover":   true,
   "show_cover":  true,
   "show_footer_date": true,
   "watermark":   "string",
@@ -162,6 +167,7 @@ Uso: `python test/runner.py` para todos o `python markforge_convert.py test/<fil
 | `make_table(headers, rows, S, C, text_width, col_widths)` | `components.py` | Tabla con grid |
 | `make_code(code_text, lang, C, text_width, mono_font)` | `components.py` | Code block Preformatted |
 | `make_note(text, S)` | `components.py` | Nota italic muted |
+| `make_index(F, C, text_width)` | `components.py` | Index alfabético SimpleIndex |
 | `assemble_section(section, S, C, text_width, toc, mono_font)` | `components.py` | Arma una sección completa |
 | `build_pdf(content, output_path)` | `core.py` | Entry point principal |
 | `main()` | `core.py` | CLI |
@@ -188,6 +194,7 @@ Uso: `python test/runner.py` para todos o `python markforge_convert.py test/<fil
 - Fecha auto-add solo detecta keys "date", "fecha", "datum".
 - Sub-headings (`###`-`######`) van como bold en body, no como secciones separadas.
 - Courier es el último recurso si `detect_system_mono()` falla (no cubre Unicode).
+- Index requiere `canvasmaker` custom en `multiBuild` para registrar callbacks de `<index item="term"/>`.
 - El monstruo original `pdf_engine.py` vive en git: `git show d62b08d^:pdf_engine.py`
 
 ## Convenciones

@@ -24,6 +24,10 @@ from markforge.fonts import DEFAULT_FONTS, detect_system_mono
 def inline_to_xml(text: str, accent: str = "#E94560",
                   mono_font: str = "Courier") -> str:
     """Convert inline markdown formatting to ReportLab XML tags."""
+    # Index terms: <<term>> → placeholder (protect from < > escaping below)
+    INDEX_MARKER = '\x00IDX:'
+    text = re.sub(r'<<(.+?)>>', INDEX_MARKER + r'\1' + '\x00', text)
+
     # Escape XML special chars first (except within XML entities)
     text = re.sub(r'&(?!(?:[a-zA-Z]+|#\d+|#x[0-9a-fA-F]+);)', '&amp;', text)
     text = text.replace("<", "&lt;").replace(">", "&gt;")
@@ -56,6 +60,9 @@ def inline_to_xml(text: str, accent: str = "#E94560",
     text = re.sub(r'`([^`]+)`',
                   rf'{_nbsp}<font face="{mono_font}" backcolor="#EDEDED">\1</font>{_nbsp}',
                   text)
+
+    # Restore index term placeholders → <index item="term"/>
+    text = re.sub(r'\x00IDX:([^\x00]+)\x00', r'<index item="\1"/>', text)
 
     return text
 
@@ -393,6 +400,10 @@ def convert(md_path: str, output_path: str | None = None) -> str:
     # TOC
     if frontmatter.get("toc", "").lower() in ("true", "yes", "1"):
         content["show_toc"] = True
+
+    # Index
+    if frontmatter.get("index", "").lower() in ("true", "yes", "1"):
+        content["show_index"] = True
 
     # Theme from titlepage-rule-color
     theme = {}

@@ -12,14 +12,15 @@ from types import MethodType
 from reportlab.lib.pagesizes import A4, LETTER, LEGAL
 from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import cm
+from reportlab.pdfgen import canvas
 from reportlab.platypus import (
     Spacer,
     SimpleDocTemplate,
 )
-from reportlab.platypus.tableofcontents import TableOfContents
+from reportlab.platypus.tableofcontents import SimpleIndex, TableOfContents
 
 from markforge.chrome import PageChrome
-from markforge.components import assemble_section, make_cover
+from markforge.components import assemble_section, make_cover, make_index
 from markforge.fonts import register_user_fonts
 from markforge.schema import validate_content
 from markforge.styles import build_styles
@@ -120,6 +121,7 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
 
     # ── Build story ──────────────────────────────────────────────────────
     show_toc = content.get("show_toc", False)
+    show_index = content.get("show_index", False)
     show_cover = content.get("show_cover", True)
     story = []
 
@@ -150,7 +152,14 @@ def build_pdf(content: dict, output_path: str | None = None) -> str:
     for section in content.get("sections", []):
         story += assemble_section(section, S, C, text_width, show_toc, mono_font)
 
-    doc.multiBuild(story, onFirstPage=chrome, onLaterPages=chrome)
+    canvasmaker = canvas.Canvas
+    if show_index:
+        idx_elems = make_index(F, C, text_width)
+        story += idx_elems
+        canvasmaker = idx_elems[1].getCanvasMaker()
+
+    doc.multiBuild(story, onFirstPage=chrome, onLaterPages=chrome,
+                   canvasmaker=canvasmaker)
 
     return str(Path(out).resolve())
 

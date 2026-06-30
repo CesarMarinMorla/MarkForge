@@ -20,6 +20,7 @@ from reportlab.platypus import (
     Table,
     TableStyle,
 )
+from reportlab.platypus.tableofcontents import SimpleIndex
 
 # ── Inline code rounded background ──────────────────────────────────────────
 # Monkey-patch ReportLab's _do_post_text to use roundRect instead of rect
@@ -153,7 +154,7 @@ def make_section_header(heading: str, S: dict, C: dict, toc: bool = False) -> li
     """Render a section heading with a two-tone horizontal rule above it."""
     p = Paragraph(safe_xml(heading), S["section_heading"])
     if toc:
-        p._tocInfo = (1, heading)
+        p._tocInfo = (0, heading)
     return [
         HRFlowable(
             width="100%", thickness=2,
@@ -318,6 +319,23 @@ def make_sub_heading(level: int, text: str, S: dict) -> list:
 def make_note(text: str, S: dict) -> list:
     """Small italic note / source citation."""
     return [Paragraph(safe_xml(text), S["note"]), Spacer(1, 4)]
+
+
+def make_index(F: dict, C: dict, text_width: float) -> list:
+    """Back-of-book index with alphabetical headers and dotted leaders."""
+    idx = SimpleIndex(
+        style=ParagraphStyle(
+            "index_entry",
+            fontName=F["sans"][0],
+            fontSize=9,
+            leading=14,
+            textColor=C["text"],
+        ),
+        dot=" . ",
+        headers=True,
+        format="123",
+    )
+    return [Spacer(1, 20), idx]
 
 
 def _render_blocks(blocks: list[dict], S: dict, C: dict, text_width: float,

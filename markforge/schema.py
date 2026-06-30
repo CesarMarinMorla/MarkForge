@@ -35,7 +35,7 @@ def validate_content(content: dict) -> list[str]:
         if val is not None and not isinstance(val, str):
             errors.append(f'"{field}" must be a string (got {type(val).__name__})')
 
-    bool_fields = {"show_toc", "show_cover", "show_footer_date"}
+    bool_fields = {"show_toc", "show_index", "show_cover", "show_footer_date"}
     for field in bool_fields:
         val = content.get(field)
         if val is not None and not isinstance(val, bool):

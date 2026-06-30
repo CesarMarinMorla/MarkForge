@@ -4,14 +4,15 @@ subtitle: "Comprehensive Feature Coverage for PDF Generation"
 author: "MarkForge QA Team"
 date: "June 2026"
 toc: true
+index: true
 titlepage-rule-color: "0D3B66"
 ---
 
-> This document tests every feature of the MarkForge PDF engine. All content is synthetic and contains no personal or private information.
+> This document tests every feature of the <<MarkForge>> PDF engine. All content is synthetic and contains no personal or private information.
 
 ## 1. Text Formatting
 
-This section covers **bold text**, *italic text*, and ***bold italic*** combinations. Inline `code` spans are rendered in a monospace font (Menlo on macOS, Courier fallback) with a rounded light gray background.
+This section covers **bold text**, *italic text*, and ***bold italic*** combinations. Inline `code` spans are rendered in a monospace font (Menlo on macOS, Courier fallback) with a rounded light gray background.  Applications using <<ReportLab>> include this PDF engine.
 
 Links are rendered with an accent color underline: [MarkForge Engine](https://example.com/markforge) and [ReportLab](https://www.reportlab.com/).
 
@@ -29,7 +30,7 @@ Deeper nesting works too. The engine handles `###`, `####`, `#####`, and `######
 
 ## 2. Tabular Data
 
-Pipe tables with various column counts and content types.
+Pipe tables with various column counts and content types are rendered via <<ReportLab>> table components.
 
 ### 2.1 Equipment Inventory
 
