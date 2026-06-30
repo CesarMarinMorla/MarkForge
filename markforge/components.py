@@ -45,10 +45,11 @@ def _patched_do_post_text(tx):
         yl = y0 + fontSize
         ydesc = yl - leading
         pad = 1.5
+        vpad = 0.5
         for x1, x2, c in xs.backColors:
             tx._canvas.setFillColor(c)
-            tx._canvas.roundRect(x1 - pad, ydesc, x2 - x1 + 2 * pad,
-                                 leading, radius=2, stroke=0, fill=1)
+            tx._canvas.roundRect(x1 - pad, ydesc + vpad, x2 - x1 + 2 * pad,
+                                 leading - 2 * vpad, radius=2, stroke=0, fill=1)
         xs.backColors = []
         xs.backColor = None
 
